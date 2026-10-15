@@ -24,7 +24,7 @@ class GetGlobalSettingsByNameRequest extends FormRequest
     public function rules()
     {
         return [
-            'settingNames' => 'required|array'
+            'settingNames' => 'required|array',
         ];
     }
 }

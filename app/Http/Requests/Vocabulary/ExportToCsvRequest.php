@@ -31,7 +31,7 @@ class ExportToCsvRequest extends FormRequest
             'phrases' => 'required|string',
             'orderBy' => 'required|string',
             'translation' => 'required|string',
-            'fields' => 'required|array'
+            'fields' => 'required|array',
         ];
     }
 }

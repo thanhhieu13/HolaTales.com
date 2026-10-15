@@ -3,7 +3,7 @@
 return [
     'my_memory_url' => 'https://api.mymemory.translated.net/',
     'languages' => [
-        // A list of the supported languages that can be read with linguacafe. 
+        // A list of the supported languages that can be read with linguacafe.
         'supported_languages' => [
             // Catalan will need a dictionary
             // 'Catalan',
@@ -39,13 +39,13 @@ return [
         ],
 
         'supported_languages_with_required_install' => [
-            "Chinese",
-            "Japanese",
-            "Korean",
-            "Russian",
-            "Turkish",
-            "Thai",
-            "Ukrainian",
+            'Chinese',
+            'Japanese',
+            'Korean',
+            'Russian',
+            'Turkish',
+            'Thai',
+            'Ukrainian',
         ],
 
         'languages_without_spaces' => [
@@ -59,8 +59,8 @@ return [
         ],
 
         /*
-            List of languages that can be selected for target language. These should also have flag images. 
-            
+            List of languages that can be selected for target language. These should also have flag images.
+
             Currently this list contain these languages:
             - dict cc supported languages
             - deepl supported languages
@@ -182,7 +182,7 @@ return [
         ],
 
         /*
-            A list of supported languages by Newspaper3k python library. This library 
+            A list of supported languages by Newspaper3k python library. This library
             is used for importing websites, and also RSS feed. This should not be modified.
         */
         'website_import_supported_languages' => [
@@ -223,7 +223,6 @@ return [
             'Ukrainian',
             'Vietnamese',
             'Chinese',
-
 
             'arabic',
             'belarusian',
@@ -302,7 +301,7 @@ return [
         ],
 
         /*
-            These language codes are used to create 
+            These language codes are used to create
             database tables for dictionaries.
         */
         'database_name_language_codes' => [
@@ -384,8 +383,8 @@ return [
 
         /*
             These are needed to recognize dict cc dictionary
-            files inside the dictionaries directory. These 
-            language codes can be found in the first line of 
+            files inside the dictionaries directory. These
+            language codes can be found in the first line of
             dict cc dictionary files.
         */
         'dict_cc_language_codes' => [
@@ -487,56 +486,56 @@ return [
         ],
 
         'libre_translate_language_codes' => [
-            'english' => "en",
-            'albanian' => "sq",
-            'arabic' => "ar",
+            'english' => 'en',
+            'albanian' => 'sq',
+            'arabic' => 'ar',
             // 'azerbaijani' => "az",
             // 'bengali' => "bn",
-            'bulgarian' => "bg",
-            'catalan' => "ca",
-            'chinese' => "zh",
-            'czech' => "cs",
-            'danish' => "da",
-            'dutch' => "nl",
-            'esperanto' => "eo",
-            'estonian' => "et",
-            'finnish' => "fi",
-            'french' => "fr",
-            'german' => "de",
-            'greek' => "el",
+            'bulgarian' => 'bg',
+            'catalan' => 'ca',
+            'chinese' => 'zh',
+            'czech' => 'cs',
+            'danish' => 'da',
+            'dutch' => 'nl',
+            'esperanto' => 'eo',
+            'estonian' => 'et',
+            'finnish' => 'fi',
+            'french' => 'fr',
+            'german' => 'de',
+            'greek' => 'el',
             // 'hebrew' => "he",
             // 'hindi' => "hi",
-            'hungarian' => "hu",
-            'indonesian' => "id",
+            'hungarian' => 'hu',
+            'indonesian' => 'id',
             // 'irish' => "ga",
-            'italian' => "it",
-            'japanese' => "ja",
-            'korean' => "ko",
-            'latvian' => "lv",
-            'lithuanian' => "lt",
+            'italian' => 'it',
+            'japanese' => 'ja',
+            'korean' => 'ko',
+            'latvian' => 'lv',
+            'lithuanian' => 'lt',
             // 'malay' => "ms",
-            'norwegian' => "nb",
+            'norwegian' => 'nb',
             // 'persian' => "fa",
-            'polish' => "pl",
-            'portuguese' => "pt",
-            'romanian' => "ro",
-            'russian' => "ru",
-            'serbian' => "sr",
-            'slovak' => "sk",
-            'slovenian' => "sl",
-            'spanish' => "es",
-            'swedish' => "sv",
+            'polish' => 'pl',
+            'portuguese' => 'pt',
+            'romanian' => 'ro',
+            'russian' => 'ru',
+            'serbian' => 'sr',
+            'slovak' => 'sk',
+            'slovenian' => 'sl',
+            'spanish' => 'es',
+            'swedish' => 'sv',
             // 'tagalog' => "tl",
-            'thai' => "th",
-            'turkish' => "tr",
-            'ukrainian' => "uk",
+            'thai' => 'th',
+            'turkish' => 'tr',
+            'ukrainian' => 'uk',
             // 'urdu' => "ur",
             // 'vietnamese' => "vi",
         ],
     ],
     'words_to_skip' => ['。', '、', ':', '？', '！', '＜', '＞', '：', ' ', '「', '」', '（', '）', '｛', '｝', '≪', '≫', '〈', '〉',
-        '《', '》','【', '】', '『', '』', '〔', '〕', '［', '］', '・', '?', '(', ')', ' ', ' NEWLINE ', '.', '%', '-',
-        '«', '»', "'", '’', '–', 'NEWLINE', 'newline', ' ', "\r", "\n", "\r\n", '	', "\r\n　", ';', ',', '!', '\'', 
+        '《', '》', '【', '】', '『', '』', '〔', '〕', '［', '］', '・', '?', '(', ')', ' ', ' NEWLINE ', '.', '%', '-',
+        '«', '»', "'", '’', '–', 'NEWLINE', 'newline', ' ', "\r", "\n", "\r\n", '	', "\r\n　", ';', ',', '!', '\'',
         '"', '‘', '_', '…', '/', '*', '&', '“', '”', '•', '©', '...', '●', '¡', '¿', '€', '$', '%', '˚', '°', '=', '!=', '-', '+'],
 
     'tokens_with_no_space_before' => ['.', ',', '?', '!', '\'', '"', '‘', '’'],

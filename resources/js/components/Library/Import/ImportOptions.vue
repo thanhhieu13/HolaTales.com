@@ -48,7 +48,7 @@
                 min="200"
                 max="20000"
                 type="Number"
-                @keyup="importOptionsChanged"
+                @input="importOptionsChanged"
                 @click="importOptionsChanged"
                 :rules="[rules.maximumCharactersPerChapter]"
             ></v-text-field>

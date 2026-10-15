@@ -201,6 +201,7 @@
             language: String
         },
         mounted() {
+            if (this.$route.query.import === '1') this.importDialog.active = true;
             this.loadBooks();
         },
         methods: {

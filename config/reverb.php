@@ -14,6 +14,7 @@ return [
     */
 
     'default' => env('REVERB_SERVER', 'reverb'),
+    'client_port' => env('REVERB_CLIENT_PORT', 6001),
 
     /*
     |--------------------------------------------------------------------------
@@ -80,7 +81,7 @@ return [
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                'allowed_origins' => ['*'],
+                'allowed_origins' => explode(',', env('REVERB_ALLOWED_ORIGINS', 'localhost,127.0.0.1')),
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 30000),
             ],

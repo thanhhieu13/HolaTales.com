@@ -24,7 +24,7 @@ class GetPhraseRequest extends FormRequest
     public function rules()
     {
         return [
-            'phraseId' => 'required|numeric|gte:0'
+            'phraseId' => 'required|numeric|gte:0',
         ];
     }
 

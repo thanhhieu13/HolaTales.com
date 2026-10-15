@@ -2,27 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Home\GetConfigRequest;
 use App\Models\User;
 use App\Services\GoalService;
-
 use App\Services\SettingsService;
 use App\Services\StatisticsService;
+// request classes
 use Illuminate\Support\Facades\Auth;
 
-// request classes
-use App\Http\Requests\Home\GetConfigRequest;
-
-class HomeController extends Controller {
-
+class HomeController extends Controller
+{
     public function __construct(
-        private StatisticsService $statisticsService, 
+        private StatisticsService $statisticsService,
         private GoalService $goalService,
         private SettingsService $settingsService
     ) {
         //
     }
 
-    public function index() {
+    public function index()
+    {
         $selectedLanguage = Auth::user()->selected_language;
         $userCount = User::count();
         $userName = Auth::user()->name;
@@ -33,7 +32,7 @@ class HomeController extends Controller {
             Auth::user()->id,
             ['textStyling', 'vuetifyThemes']
         );
-        
+
         return view('home', [
             'language' => $selectedLanguage,
             'userCount' => $userCount,
@@ -46,7 +45,8 @@ class HomeController extends Controller {
         ]);
     }
 
-    public function getStatistics() {
+    public function getStatistics()
+    {
         $userId = Auth::user()->id;
         $language = Auth::user()->selected_language;
 
@@ -59,20 +59,23 @@ class HomeController extends Controller {
         return response()->json($statistics, 200);
     }
 
-    public function getConfig($configPath, GetConfigRequest $request) {
+    public function getConfig($configPath, GetConfigRequest $request)
+    {
         if (strpos($configPath, 'linguacafe') !== 0) {
             abort(500, 'The requested config is not publicly available.');
         }
-        
-        if (!config()->has($configPath)) {
+
+        if (! config()->has($configPath)) {
             abort(500, 'Requested config value does not exist.');
         }
 
         $config = config($configPath);
+
         return response()->json($config, 200);
     }
 
-    public function getUserManualTree() {
+    public function getUserManualTree()
+    {
         $manualTree = [];
 
         $path = public_path('./../manual/');
@@ -86,16 +89,16 @@ class HomeController extends Controller {
             }
 
             // create page;
-            $page = new \stdClass();
+            $page = new \stdClass;
             $page->id = $index;
             $page->name = str_replace('.md', '', $file);
             $page->fileName = str_replace('.md', '', $file);
             $page->level = 0;
-            $index ++;
+            $index++;
 
             // get subpages
             $subPages = [];
-            $handle = fopen('./../manual/' . $file, "r");
+            $handle = fopen('./../manual/'.$file, 'r');
             if ($handle) {
                 while (($line = fgets($handle)) !== false) {
                     // if line starts with "# "
@@ -105,13 +108,13 @@ class HomeController extends Controller {
                         $subPageName = str_replace("\n", '', $subPageName);
                         $subPageName = str_replace("\n", '', $subPageName);
 
-                        $subPage = new \stdClass();
+                        $subPage = new \stdClass;
                         $subPage->id = $index;
                         $subPage->name = $subPageName;
-                        $subPage->fileName = str_replace('.md', '', $file) . '#' . $subPageName;
+                        $subPage->fileName = str_replace('.md', '', $file).'#'.$subPageName;
                         $subPage->level = 1;
                         $subPages[] = $subPage;
-                        $index ++;
+                        $index++;
                     }
                 }
 
@@ -128,7 +131,8 @@ class HomeController extends Controller {
         return response()->json($manualTree, 200);
     }
 
-    public function getUserManualFile($fileName) {
-        return response()->file('./../manual/' . $fileName . '.md');
+    public function getUserManualFile($fileName)
+    {
+        return response()->file('./../manual/'.$fileName.'.md');
     }
 }

@@ -1,12 +1,14 @@
 <template>
     <v-container
-        v-if="currentReviewIndex !== -1 || finished"
+        v-if="currentReviewIndex !== -1 || finished || reviewLoading || reviewError"
         id="review-box"
         :class="{
             'pa-0': $vuetify.breakpoint.smAndDown
         }"
     >
 
+        <v-alert v-if="reviewError" type="error" role="alert">{{ reviewError }}</v-alert>
+        <v-progress-linear v-if="reviewLoading" indeterminate aria-label="Loading review queue" />
         <!-- Review hotkeys dialog -->
         <review-hotkey-information-dialog
             v-model="hotkeyDialog"
@@ -67,7 +69,7 @@
         </v-card>
 
         <!-- Review -->
-        <div id="review" v-if="!finished">
+        <div id="review" v-if="!finished && currentReviewIndex !== -1">
             <!-- Progress bar -->
             <div id="review-progress-line" class="d-flex align-center">
                 <v-badge
@@ -274,7 +276,7 @@
                         </div>
 
                         <!-- Review card back -->
-                        <div id="review-card-back" class="rounded-lg border" :style="{'background-color': backgroundColor}">
+                        <div id="review-card-back" :aria-hidden="!revealed" class="rounded-lg border" :style="{'background-color': backgroundColor}">
                             <!-- Word review -->
                             <template v-if="reviews[currentReviewIndex] !== undefined && reviews[currentReviewIndex].type == 'word'">
                                 <!-- Single word  mode -->
@@ -340,9 +342,11 @@
                             </div>
 
                             <!-- Answer buttons -->
-                            <div class="review-button-box">
-                                <v-btn rounded id="review-correct-button" color="success" @click="correct" v-if="revealed">I was correct</v-btn>
-                                <v-btn rounded id="review-wrong-button" color="error" @click="missed" v-if="revealed">Again</v-btn>
+                            <div class="review-button-box review-grades">
+                                <v-btn rounded id="review-correct-button" color="success" @click="correct" :loading="reviewSaving" :disabled="reviewSaving" v-if="revealed">Good</v-btn>
+                                <v-btn rounded @click="submitReview('hard')" :disabled="reviewSaving" v-if="revealed">Hard</v-btn>
+                                <v-btn rounded @click="submitReview('easy')" :disabled="reviewSaving" v-if="revealed">Easy</v-btn>
+                                <v-btn rounded id="review-wrong-button" color="error" @click="missed" :disabled="reviewSaving" v-if="revealed">Again</v-btn>
                             </div>
                         </div>
                     </div>
@@ -374,6 +378,11 @@
                         uniqueWords: [],
                     }
                 ],
+                reviewLoading: true,
+                reviewRequestId: null,
+                target: '',
+                reviewSaving: false,
+                reviewError: '',
                 practiceMode: false,
                 revealed: false,
                 backToDeckAnimation: false,
@@ -398,7 +407,6 @@
                 correctReviews: 0,
                 language: '',
                 languageSpaces: false,
-                readWords: 0,
                 finishedReviews: -1,
                 finished: false,
                 today: new moment().format('YYYY-MM-DD'), // CHANGE TO SERVER SIDE
@@ -432,6 +440,7 @@
                 this.reviews = data.reviews;
                 this.totalReviews = data.reviews.length;
                 this.language = data.language;
+                this.target = data.target;
                 this.languageSpaces = data.languageSpaces;
 
                 if (this.reviews.length) {
@@ -447,7 +456,7 @@
 
                 this.textToSpeechService = new TextToSpeechService(this.language, this.updateTextToSpeechState);
                 window.addEventListener('keyup', this.hotkey);
-            });
+            }).catch(() => { this.reviewError = 'Không tải được hàng đợi ôn tập. Hãy thử tải lại trang.'; }).finally(() => { this.reviewLoading = false; });
         },
         beforeDestroy: function () {
             window.removeEventListener('keyup', this.hotkey);
@@ -535,119 +544,45 @@
                 this.revealed = true;
                 this.newCardAnimation = false;
             },
-            countReadWords() {
-                var wordsToSkip = ['。', '、', ':', '？', '！', '＜', '＞', '：', ' ', '「', '」', '（', '）', '｛', '｝', '≪', '≫', '〈', '〉',
-                        '《', '》','【', '】', '『', '』', '〔', '〕', '［', '］', '・', '?', '(', ')', ' ', ' NEWLINE ', '.', '%', '-',
-                        '«', '»', "'", '’', '–', 'NEWLINE'];
-
-                if (this.settings.reviewSentenceMode === 'disabled' || this.exampleSentence === null) {
-                    if (this.reviews[this.currentReviewIndex].type == 'word') {
-                        this.readWords ++;
+            correct() { this.submitReview('good'); },
+            missed() { this.submitReview('again'); },
+            async submitReview(grade) {
+                if (this.reviewSaving || !this.revealed || !this.reviews[this.currentReviewIndex]) return;
+                this.reviewSaving = true;
+                this.reviewError = '';
+                const card = this.reviews[this.currentReviewIndex];
+                try {
+                    if (!this.practiceMode) {
+                        if (!this.reviewRequestId) this.reviewRequestId = crypto.randomUUID();
+                        const response = await axios.post('/reviews/submit', {
+                            request_id: this.reviewRequestId, kind: card.type, item_id: card.id,
+                            source: this.language, target: this.target, grade,
+                            expected_stage: card.stage, expected_relearning: !!card.relearning,
+                        });
+                        Object.assign(card, response.data);
+                    }
+                    this.reviewRequestId = null;
+                    this.revealed = false;
+                    this.newCardAnimation = false;
+                    if (grade === 'again') {
+                        this.backToDeckAnimation = true;
+                        this.backgroundColor = this.$vuetify.theme.currentTheme.error;
+                        setTimeout(this.next, this.transitionDuration);
                     } else {
-                        this.readWords += JSON.parse(this.reviews[this.currentReviewIndex].words).length;
-                    }
-                } else {
-                    for (var i = 0; i < this.exampleSentence.words.length; i++) {
-                        if (wordsToSkip.includes(this.exampleSentence.words[i].word)) {
-                            continue;
-                        }
-
-                        this.readWords ++;
-                    }
-                }
-            },
-            correct() {
-                this.revealed = false;
-                this.intoTheCorrectDeckAnimation = true;
-                this.backToDeckAnimation = false;
-                this.newCardAnimation = false;
-                this.backgroundColor = this.$vuetify.theme.currentTheme.success;
-
-                this.correctReviews ++;
-                this.countReadWords();
-
-                // update word or phrase in database
-                var url = '/vocabulary/word/update';
-                if (this.reviews[this.currentReviewIndex].type == 'phrase') {
-                    url = '/vocabulary/phrases/update';
-                }
-
-                var saveData = {
-                    id: this.reviews[this.currentReviewIndex].id
-                };
-
-                var increaseReviewAchievement = false;
-                if (this.reviews[this.currentReviewIndex].relearning) {
-                    saveData.relearning = false;
-                    this.reviews[this.currentReviewIndex].relearning = false;
-                    increaseReviewAchievement = true;
-                } else {
-                    saveData.stage = this.reviews[this.currentReviewIndex].stage + 1;
-                    if (saveData.stage <= 0 && saveData.stage > this.reviews[this.currentReviewIndex].stage) {
-                        increaseReviewAchievement = true;
-                    }
-                }
-
-                if (!this.practiceMode) {
-                    if (increaseReviewAchievement) {
-                        axios.post('/goals/achievement/review/update');
-                    }
-
-                    axios.post(url, saveData).then(() => {
-                        if (this.reviews.length == 1) {
-                            this.finish();
-                        } else {
-                            this.reviews.splice(this.currentReviewIndex, 1)[0];
+                        this.correctReviews++;
+                        this.intoTheCorrectDeckAnimation = true;
+                        this.backgroundColor = this.$vuetify.theme.currentTheme.success;
+                        if (this.reviews.length === 1) this.finish();
+                        else {
+                            this.reviews.splice(this.currentReviewIndex, 1);
                             setTimeout(this.next, this.transitionDuration);
                         }
-                    });
-                } else {
-                    if (this.reviews.length == 1) {
-                        this.finish();
-                    } else {
-                        this.reviews.splice(this.currentReviewIndex, 1)[0];
-                        setTimeout(this.next, this.transitionDuration);
                     }
-                }
-            },
-            missed() {
-                this.backToDeckAnimation = true;
-                this.intoTheCorrectDeckAnimation = false;
-                this.newCardAnimation = false;
-                this.backgroundColor = this.$vuetify.theme.currentTheme.error;
-                this.revealed = false;
-                this.countReadWords();
-
-                // update word or phrase in database
-                var url = '/vocabulary/word/update';
-                if (this.reviews[this.currentReviewIndex].type == 'phrase') {
-                    url = '/vocabulary/phrases/update';
-                }
-
-                var saveData = {
-                    id: this.reviews[this.currentReviewIndex].id,
-                    savedDuringReview: true
-                };
-
-                if (!this.reviews[this.currentReviewIndex].relearning && !this.practiceMode) {
-                    if (this.reviews[this.currentReviewIndex].stage > -7) {
-                        if (this.reviews[this.currentReviewIndex].stage > -6) {
-                            saveData.relearning = true;
-                            this.reviews[this.currentReviewIndex].relearning = true;
-                        }
-
-                        this.reviews[this.currentReviewIndex].stage = this.reviews[this.currentReviewIndex].stage - 1;
-                        saveData.stage = this.reviews[this.currentReviewIndex].stage;
-                    }
-                }
-
-                if (!this.practiceMode) {
-                    axios.post(url, saveData).then(() => {
-                        setTimeout(this.next, this.transitionDuration);
-                    });
-                } else {
-                    setTimeout(this.next, this.transitionDuration);
-                }
+                } catch (e) {
+                    this.reviewError = e.response?.status === 409
+                        ? 'Thẻ hoặc cặp ngôn ngữ đã thay đổi. Tải lại hàng đợi trước khi ôn tiếp.'
+                        : 'Chưa lưu được kết quả ôn. Kiểm tra kết nối và thử lại.';
+                } finally { this.reviewSaving = false; }
             },
             next() {
                 this.backToDeckAnimation = false;
@@ -680,12 +615,7 @@
                     this.textBlockKey++;
                 });
 
-                // update reviewed and read words data
-                axios.post('/reviews/update', {
-                    readWords: this.readWords,
-                }).then(() => {
-                    this.readWords = 0;
-                });
+
             },
             finish() {
                 this.finished = true;

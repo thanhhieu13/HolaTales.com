@@ -27,7 +27,7 @@ class AddCardToAnkiRequest extends FormRequest
             'word' => 'required|string',
             'reading' => 'string|nullable',
             'translation' => 'string|nullable',
-            'exampleSentence' => 'string'
+            'exampleSentence' => 'string',
         ];
     }
 }

@@ -40,18 +40,8 @@
                         <span id="calendar-date-button-text">{{ pickerDateFormated }}&nbsp;</span><v-icon>mdi-calendar</v-icon>
                     </v-btn>
                 </template>
-                <v-date-picker
-                    v-model="pickerDate"
-                    scrollable
-                    type="month"
-                    :show-current="false"
-                    color="primary"
-                    header-color="primary"
-                    @change="datePickerChanged"
-                >
-                    <v-spacer></v-spacer>
-                    <v-btn text rounded @click="showDatePicker = false">Close</v-btn>
-                </v-date-picker>
+                <v-text-field type="month" v-model="pickerDate" label="Month" @change="datePickerChanged" class="pa-4"></v-text-field>
+                <v-btn text rounded @click="showDatePicker = false">Close</v-btn>
             </v-menu>
         </div>
 

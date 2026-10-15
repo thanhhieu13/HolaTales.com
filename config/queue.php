@@ -29,6 +29,14 @@ return [
     */
 
     'connections' => [
+        'translations' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'translations',
+            'retry_after' => 300,
+            'block_for' => 5,
+            'after_commit' => true,
+        ],
 
         'sync' => [
             'driver' => 'sync',

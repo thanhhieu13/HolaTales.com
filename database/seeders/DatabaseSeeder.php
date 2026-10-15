@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SettingsSeeder::class,
+            StorySeeder::class,
+            SpanishStorySeeder::class,
             DictionarySeeder::class,
             FontTypeSeeder::class,
         ]);

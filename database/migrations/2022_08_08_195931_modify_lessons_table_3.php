@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\Lesson;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use App\Models\Lesson;
 
 class ModifyLessonsTable3 extends Migration
 {
@@ -13,8 +13,8 @@ class ModifyLessonsTable3 extends Migration
      */
     public function up()
     {
-        DB::statement("ALTER TABLE lessons MODIFY raw_text MEDIUMBLOB");
-        DB::statement("ALTER TABLE lessons MODIFY processed_text MEDIUMBLOB");
+        DB::statement('ALTER TABLE lessons MODIFY raw_text MEDIUMBLOB');
+        DB::statement('ALTER TABLE lessons MODIFY processed_text MEDIUMBLOB');
 
         $chapters = Lesson::all();
         foreach ($chapters as $chapter) {
@@ -22,11 +22,11 @@ class ModifyLessonsTable3 extends Migration
             $words = [];
             for ($j = 0; $j < count($sentences); $j++) {
                 for ($i = 0; $i < count($sentences[$j]); $i++) {
-                    $word = new \stdClass();
+                    $word = new stdClass;
                     $word->word = $sentences[$j][$i];
                     $word->sentenceIndex = $j;
                     $word->phraseIds = [];
-                    
+
                     array_push($words, $word);
                 }
             }

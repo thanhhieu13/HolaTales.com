@@ -30,7 +30,7 @@ class SearchKanjiRequest extends FormRequest
                 'string',
                 Rule::in(['grade', 'jlpt']),
             ],
-            'showUnknown' => 'required|boolean'
+            'showUnknown' => 'required|boolean',
         ];
     }
 }

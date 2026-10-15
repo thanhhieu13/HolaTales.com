@@ -1,41 +1,50 @@
 <template>
-   <v-app :class="{'eink': theme == 'eink', 'dark': theme == 'dark'}">
+   <v-app :class="{'eink': theme == 'eink', 'dark': theme == 'dark', 'reader-focus': readerFocus}">
 
         <!-- Dialogs -->
         <start-review-dialog v-model="startReviewDialog" />
         <logout-dialog v-model="logoutDialog"/>
+        <v-alert v-if="sessionExpired && $route.path !== '/login'" type="warning" style="position:fixed;top:0;left:0;right:0;z-index:100">{{ $t('session_expired') }} <a href="/login">{{ $t('login') }}</a></v-alert>
 
+
+        <v-alert v-if="networkUnavailable" type="warning" role="alert" style="position:fixed;bottom:64px;left:16px;right:16px;z-index:100">{{ $t('offline') }}</v-alert>
         <template v-if="$router.currentRoute.path !== '/login'">
             <theme-selection-dialog v-model="themeSelectionDialog" @input="updateTheme"></theme-selection-dialog>
             <language-selection-dialog v-model="languageSelectionDialog"></language-selection-dialog>
-            <v-navigation-drawer
+            <v-navigation-drawer :width="240" :mini-variant-width="68"
                 id="navigation-drawer"
                 app
                 dense
                 :class="{'eink': theme == 'eink'}"
-                :mini-variant="$vuetify.breakpoint.md || navbarCollapsed"
+                :mini-variant="$vuetify.breakpoint.md || navbarCollapsed || isReader"
                 :permanent="$vuetify.breakpoint.mdAndUp"
+                :temporary="$vuetify.breakpoint.smAndDown"
                 v-model="drawer"
                 color="foreground"
             >
                 <!-- Logo -->
-                <div id="logo" class="d-flex justify-center my-5" v-if="$vuetify.breakpoint.lgAndUp && !navbarCollapsed">
+                <div id="logo" class="d-flex justify-center my-5" v-if="$vuetify.breakpoint.lgAndUp && !navbarCollapsed && !isReader">
                     <img src="/icon512rounded.png" class="mr-2" width="32px" height="32px"/>
-                    <span class="text--text">Lingua Cafe</span>
+                    <span class="text--text">HolaTales</span>
                 </div>
 
                 <v-list nav shaped dense class="pl-0">
                     <!-- Navigation buttons -->
+                    <template v-for="(item, index) in navigation">
+                    <v-subheader v-if="item.group && !navbarCollapsed && !$vuetify.breakpoint.md && !isReader" :key="'group-'+index">{{ item.group }}</v-subheader>
                     <v-list-item
                         class="navigation-button"
-                        v-for="(item, index) in navigation"
                         :key="index"
-                        :to="item.url"
+                        :title="item.name"
+                        exact
+                        :to="item.external ? undefined : item.url"
+                        :href="item.external ? item.url : undefined"
                         @click="navigationClick(item.name, $event)"
                     >
                         <v-icon> {{ item.icon }} </v-icon>
                         <span class="pl-6"> {{ item.name }} </span>
                     </v-list-item>
+                    </template>
                     <v-list-item class="navigation-button" @click="openLogoutDialog">
                         <v-icon> mdi-logout </v-icon>
                         <span class="pl-6"> Logout </span>
@@ -78,17 +87,15 @@
             </v-navigation-drawer>
 
             <!-- Bottom navigation -->
-            <v-bottom-navigation dense grow shift class="d-flex d-sm-flex d-md-none" dark background-color="primary">
-                <v-btn class="text-decoration-none" width="60" style="float: left;" @click="drawer = true;">
-                    <span>More</span>
-                    <v-icon>mdi-menu</v-icon>
-                </v-btn><v-spacer></v-spacer>
+            <v-bottom-navigation v-if="!isReader" dense grow class="d-flex d-sm-flex d-md-none" dark background-color="primary">
+
                 <v-btn
                     class="text-decoration-none"
                     grow
                     v-for="(item, index) in navigation"
                     :key="index"
-                    :to="item.url"
+                    :to="item.external ? undefined : item.url"
+                        :href="item.external ? item.url : undefined"
                     v-if="item.bottomNav"
                 >
                     <span>{{ item.name }}</span>
@@ -113,7 +120,7 @@
             return {
                 selectedLanguage: this.$props._selectedLanguage,
                 theme: DefaultLocalStorageManager.loadSetting("theme") || 'light',
-                logoutDialog: false,
+                readerFocus: false, sessionExpired: false, networkUnavailable: !navigator.onLine, logoutDialog: false,
                 themeSelectionDialog: false,
                 languageSelectionDialog: false,
                 startReviewDialog: false,
@@ -121,47 +128,23 @@
                 navbarVisible: true,
                 navbarCollapsed: false,
                 navigation: [
-                    {
-                        name: 'Home',
-                        url: '/',
-                        icon: 'mdi-home',
-                        bottomNav: true,
-                    },
-                    {
-                        name: 'Library',
-                        url: '/books',
-                        icon: 'mdi-bookshelf',
-                        bottomNav: true,
-                    },
-                    {
-                        name: 'Vocabulary',
-                        url: '/vocabulary/search',
-                        icon: 'mdi-translate',
-                        bottomNav: true,
-                    },
-                    {
-                        name: 'Review',
-                        url: '',
-                        click: this.openStartReviewDialog,
-                        icon: 'mdi-playlist-check',
-                        bottomNav: false,
-                    },
-                    {
-                        name: 'User settings',
-                        url: '/user-settings',
-                        icon: 'mdi-account-cog',
-                        bottomNav: false,
-                    },
-                    {
-                        name: 'User manual',
-                        url: '/user-manual',
-                        icon: 'mdi-account-question',
-                        bottomNav: false,
-                    }
+                    {name:this.$t('home'),group:this.$t('discover'),url:'/learn',external:true,icon:'mdi-home',bottomNav:true},
+                    {name:this.$t('library'),url:'/stories',external:true,icon:'mdi-book-open-page-variant',bottomNav:true},
+                    {name:this.$t('continue_reading'),group:this.$t('my_learning'),url:'/learn#continue',external:true,icon:'mdi-bookmark',bottomNav:false},
+                    {name:this.$t('vocabulary'),url:'/vocabulary/search',icon:'mdi-translate',bottomNav:false},
+                    {name:this.$t('review'),url:'/review/false/-1/-1',icon:'mdi-playlist-check',bottomNav:true},
+                    {name:this.$t('progress'),url:'/progress',external:true,icon:'mdi-chart-line',bottomNav:true},
+                    {name:this.$t('my_stories'),group:this.$t('personal'),url:'/books',icon:'mdi-bookshelf',bottomNav:false},
+                    {name:this.$t('import'),url:'/books?import=1',icon:'mdi-file-upload',bottomNav:false},
+                    {name:this.$t('settings'),group:this.$t('account'),url:'/onboarding',external:true,icon:'mdi-cog',bottomNav:false},
+                    {name:this.$t('profile'),url:'/user-settings',icon:'mdi-account-circle',bottomNav:true},
+                    {name:this.$t('manual'),url:'/user-manual',icon:'mdi-account-question',bottomNav:false}
                 ],
             }
         },
+        watch: { '$vuetify.breakpoint.smAndDown'(mobile) { if (mobile) this.drawer = false; } },
         computed: {
+            isReader() { return this.$route.path.startsWith('/chapters/read/'); },
             textStyling: function() {
                 let settingsObject = this.$store.state.shared.textStylingSettings
 
@@ -230,13 +213,37 @@
             this.navbarCollapsed = savedNavbarCollapsed ? savedNavbarCollapsed === 'true' : false;
         },
         mounted() {
+            window.addEventListener('offline', this.markOffline);
+            window.addEventListener('online', this.markOnline);
+            window.addEventListener('holatales-network-unavailable', this.markOffline);
+            window.addEventListener('holatales-network-restored', this.markOnline);
+            window.addEventListener('holatales-session-expired', this.expireSession);
+            this.$root.$on('toggle-navigation', this.toggleNavigation);
+            this.$root.$on('reader-overlay-open', this.closeNavigation);
+            this.$root.$on('reader-focus', this.setReaderFocus);
             // load default and selected font types into the dom
             var fontTypeService = new FontTypeService(this.selectedLanguage, () => {
                 fontTypeService.loadSelectedFontTypeIntoDom();
                 fontTypeService.loadDefaultFontTypeIntoDom();
             });
         },
+        beforeDestroy() {
+            window.removeEventListener('offline', this.markOffline);
+            window.removeEventListener('online', this.markOnline);
+            window.removeEventListener('holatales-network-unavailable', this.markOffline);
+            window.removeEventListener('holatales-network-restored', this.markOnline);
+            window.removeEventListener('holatales-session-expired', this.expireSession);
+            this.$root.$off('toggle-navigation', this.toggleNavigation);
+            this.$root.$off('reader-overlay-open', this.closeNavigation);
+            this.$root.$off('reader-focus', this.setReaderFocus);
+        },
         methods: {
+            toggleNavigation() { this.drawer = !this.drawer; },
+            closeNavigation() { if (this.$vuetify.breakpoint.smAndDown) this.drawer = false; },
+            markOffline() { this.networkUnavailable = true; },
+            markOnline() { this.networkUnavailable = false; },
+            setReaderFocus(enabled) { this.readerFocus = enabled; },
+            expireSession() { this.sessionExpired = true; },
             initializeThemes() {
                 this.loadSelectedTheme();
                 ThemeService.setDefaultVuetifyTheme(this.$vuetify);

@@ -13,7 +13,7 @@ class ModifyPhrasesTable2 extends Migration
      */
     public function up()
     {
-        DB::statement("ALTER TABLE phrases DROP COLUMN last_level_up");
+        DB::statement('ALTER TABLE phrases DROP COLUMN last_level_up');
         Schema::table('phrases', function (Blueprint $table) {
             // the date when the phrase was added to srs for the first time
             // it's null if it was not in the srs system yet

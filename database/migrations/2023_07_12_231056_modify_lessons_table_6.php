@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 class ModifyLessonsTable6 extends Migration
 {
@@ -13,7 +11,7 @@ class ModifyLessonsTable6 extends Migration
      */
     public function up()
     {
-        DB::statement("ALTER TABLE lessons DROP COLUMN processed_text");
+        DB::statement('ALTER TABLE lessons DROP COLUMN processed_text');
     }
 
     /**

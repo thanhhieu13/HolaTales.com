@@ -31,7 +31,7 @@ class SearchVocabularyRequest extends FormRequest
             'phrases' => 'required|string',
             'orderBy' => 'required|string',
             'translation' => 'required|string',
-            'page' => 'required|numeric'
+            'page' => 'required|numeric',
         ];
     }
 }

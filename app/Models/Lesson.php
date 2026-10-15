@@ -16,6 +16,6 @@ This is only here for old database migrations. This should not be used anymore.
 class Lesson extends Model
 {
     use HasFactory;
-    
+
     protected $table = 'lessons';
 }

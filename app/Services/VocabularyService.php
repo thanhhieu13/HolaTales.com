@@ -2,53 +2,55 @@
 
 namespace App\Services;
 
+use App\Enums\ChapterProcessingStatusEnum;
 use App\Models\Book;
-use App\Models\Kanji;
-use App\Models\Phrase;
-
-// models
-use League\Csv\Reader;
-use League\Csv\Writer;
 use App\Models\Chapter;
-use App\Models\Radical;
+// models
 use App\Models\EncounteredWord;
 use App\Models\ExampleSentence;
-use App\Enums\ChapterProcessingStatusEnum;
-
+use App\Models\Kanji;
+use App\Models\Phrase;
+use App\Models\Radical;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 // services
-use App\Services\TextBlockService;
-use Illuminate\Support\Facades\DB;;
+use League\Csv\Reader;
+use League\Csv\Writer;
 
-class VocabularyService {
+class VocabularyService
+{
     private $itemsPerPage;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->itemsPerPage = 30;
     }
 
-    public function getUniqueWord($userId, $wordId) {
-        $word = EncounteredWord
-            ::where('user_id', $userId)
+    public function getUniqueWord($userId, $wordId)
+    {
+        $word = EncounteredWord::where('user_id', $userId)
             ->where('id', $wordId)
+            ->where('language', User::findOrFail($userId)->selected_language)
             ->first();
-        
-        if (!$word) {
-            throw new \Exception('Word does not exist, or it belongs to a different user.');
+
+        if (! $word) {
+            abort(404, 'Resource not found.');
         }
 
         return $word;
     }
 
-    public function updateWord($userId, $wordId, $wordData, $wordStage = null) {
-        $word = EncounteredWord
-            ::where('user_id', $userId)
+    public function updateWord($userId, $wordId, $wordData, $wordStage = null)
+    {
+        $word = EncounteredWord::where('user_id', $userId)
             ->where('id', $wordId)
+            ->where('language', User::findOrFail($userId)->selected_language)
             ->first();
-        
-        if (!$word) {
-            throw new \Exception('Word does not exist, or it belongs to a different user.');
+
+        if (! $word) {
+            abort(404, 'Resource not found.');
         }
-        
+
         if ($wordStage !== null) {
             $word->setStage($wordStage);
         }
@@ -59,20 +61,21 @@ class VocabularyService {
         return true;
     }
 
-    public function createPhrase($userId, $language, $words, $stage, $reading, $translation, $languagesWithoutSpaces) {
-        $phrase = new Phrase();
+    public function createPhrase($userId, $language, $words, $stage, $reading, $translation, $languagesWithoutSpaces)
+    {
+        $phrase = new Phrase;
         $phrase->user_id = $userId;
         $phrase->language = $language;
-        $phrase->stage = $stage;
+        $phrase->stage = 2;
         $phrase->reading = $reading;
         $phrase->translation = $translation;
         $phrase->words = json_encode($words);
 
-        if (!is_array($words)) {
+        if (! is_array($words)) {
             throw new \Exception('Words parameter must be an array!');
         }
 
-        if (!count($words)) {
+        if (! count($words)) {
             throw new \Exception('Words parameter must not be empty!');
         }
 
@@ -81,38 +84,42 @@ class VocabularyService {
         } else {
             $phrase->words_searchable = implode(' ', $words);
         }
-        
+
+        $existing = Phrase::where('user_id', $userId)->where('language', $language)->where('words_searchable', $phrase->words_searchable)->first();
+        if ($existing) {
+            return $existing->id;
+        }
+        $phrase->save();
+        $phrase->setStage($stage);
         $phrase->save();
 
         // update phrase ids in chapter texts
-        $chapterIds = Chapter
-                ::where('user_id', $userId)
-                ->where('language', $language)
-                ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
-                ->pluck('id')
-                ->toArray();
+        $chapterIds = Chapter::where('user_id', $userId)
+            ->where('language', $language)
+            ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
+            ->pluck('id')
+            ->toArray();
 
         $phraseWords = array_unique(json_decode($phrase->words));
         foreach ($chapterIds as $chapterId) {
-            DB::transaction(function() use($chapterId, $phraseWords, $userId, $language, $phrase) {
-                $chapter = Chapter
-                    ::lockForUpdate()
+            DB::transaction(function () use ($chapterId, $phraseWords, $userId, $language, $phrase) {
+                $chapter = Chapter::lockForUpdate()
                     ->where('id', $chapterId)
                     ->where('user_id', $userId)
                     ->where('language', $language)
                     ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
                     ->first();
-    
+
                 $uniqueWords = json_decode($chapter->unique_words);
-    
+
                 if (count(array_intersect($uniqueWords, $phraseWords)) === count($phraseWords)) {
                     $words = $chapter->getProcessedText();
-    
+
                     $textBlock = new TextBlockService($userId, $language);
                     $textBlock->setProcessedWords($words);
                     $textBlock->collectUniqueWords();
                     $phraseIdsChanged = $textBlock->updatePhraseIds($phrase);
-    
+
                     // save chapter words
                     if ($phraseIdsChanged) {
                         $chapter->setProcessedText($textBlock->processedWords);
@@ -123,8 +130,7 @@ class VocabularyService {
         }
 
         // update phrase ids in example sentences
-        $exampleSentences = ExampleSentence
-            ::where('user_id', $userId)
+        $exampleSentences = ExampleSentence::where('user_id', $userId)
             ->where('language', $language)
             ->get();
 
@@ -140,30 +146,30 @@ class VocabularyService {
             $textBlock->collectUniqueWords();
             $textBlock->updatePhraseIds($phrase);
             $textBlock->createNewEncounteredWords();
-            
+
             $exampleSentence->words = json_encode($textBlock->processedWords);
             $exampleSentence->unique_words = json_encode($textBlock->uniqueWords);
             $exampleSentence->save();
         }
 
         DB::commit();
-        
+
         return $phrase->id;
     }
 
-    public function indexPhraseInChapter($chapterId, $userId, $language, $phrase) {
-        DB::transaction(function() use($chapterId, $userId, $language, $phrase) {
+    public function indexPhraseInChapter($chapterId, $userId, $language, $phrase)
+    {
+        DB::transaction(function () use ($chapterId, $userId, $language, $phrase) {
             $phraseWords = json_decode($phrase->words);
 
-            $chapter = Chapter
-                ::lockForUpdate()
+            $chapter = Chapter::lockForUpdate()
                 ->where('id', $chapterId)
                 ->where('user_id', $userId)
                 ->where('language', $language)
                 ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
                 ->first();
 
-            if (!$chapter) {
+            if (! $chapter) {
                 throw new \Exception('Chapter not found.');
             }
 
@@ -185,9 +191,10 @@ class VocabularyService {
             }
         });
     }
-    
-    public function updatePhrase($userId, $phraseId, $phraseData, $phraseStage = null) {
-        
+
+    public function updatePhrase($userId, $phraseId, $phraseData, $phraseStage = null)
+    {
+
         /*
             Unset words in case it somehow ended up in the array, because
             it is also a fillable property, but should not be changed after
@@ -195,15 +202,15 @@ class VocabularyService {
         */
         unset($phraseData['words']);
 
-        $phrase = Phrase
-            ::where('user_id', $userId)
+        $phrase = Phrase::where('user_id', $userId)
             ->where('id', $phraseId)
+            ->where('language', User::findOrFail($userId)->selected_language)
             ->first();
-        
-        if (!$phrase) {
-            throw new \Exception('Phrase does not exist, or it belongs to a different user.');
+
+        if (! $phrase) {
+            abort(404, 'Resource not found.');
         }
-        
+
         if ($phraseStage !== null) {
             $phrase->setStage($phraseStage);
         }
@@ -214,38 +221,39 @@ class VocabularyService {
         return true;
     }
 
-    public function getPhrase($userId, $phraseId) {
-        $phrase = Phrase
-            ::where('user_id', $userId)
+    public function getPhrase($userId, $phraseId)
+    {
+        $phrase = Phrase::where('user_id', $userId)
             ->where('id', $phraseId)
+            ->where('language', User::findOrFail($userId)->selected_language)
             ->first();
 
-        if (!$phrase) {
-            throw new \Exception('Phrase does not exist, or it belongs to a different user.');
+        if (! $phrase) {
+            abort(404, 'Resource not found.');
         }
 
         return $phrase;
     }
 
-    public function deletePhrase($userId, $language, $phraseId) {
-        $phrase = Phrase
-            ::where('user_id', $userId)
+    public function deletePhrase($userId, $language, $phraseId)
+    {
+        $phrase = Phrase::where('user_id', $userId)
             ->where('language', $language)
             ->where('id', $phraseId)
+            ->where('language', User::findOrFail($userId)->selected_language)
             ->first();
 
-        if (!$phrase) {
-            throw new \Exception('Phrase does not exist, or it belongs to a different user.');
+        if (! $phrase) {
+            abort(404, 'Resource not found.');
         }
 
         // remove phrase ids from text words
-        $chapters = Chapter
-            ::where('user_id', $userId)
+        $chapters = Chapter::where('user_id', $userId)
             ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
             ->where('language', $language)
             ->get();
 
-        foreach($chapters as $chapter) {
+        foreach ($chapters as $chapter) {
             $words = $chapter->getProcessedText();
             $chapterChanged = false;
 
@@ -268,8 +276,7 @@ class VocabularyService {
         }
 
         // remove phrase ids from example sentence words
-        $exampleSentences = ExampleSentence
-            ::where('user_id', $userId)
+        $exampleSentences = ExampleSentence::where('user_id', $userId)
             ->where('language', $language)
             ->get();
 
@@ -279,33 +286,33 @@ class VocabularyService {
         }
 
         DB::commit();
-        
-        ExampleSentence
-            ::where('user_id', $userId)
+
+        ExampleSentence::where('user_id', $userId)
             ->where('target_type', 'phrase')
             ->where('target_id', $phraseId)
             ->delete();
 
-        Phrase
-            ::where('user_id', $userId)
+        DB::table('saved_meanings')->where('user_id', $userId)->where('kind', 'phrase')->where('item_id', $phraseId)->delete();
+        Phrase::where('user_id', $userId)
             ->where('language', $language)
             ->where('id', $phraseId)
+            ->where('language', User::findOrFail($userId)->selected_language)
             ->delete();
 
         return true;
     }
 
-    public function getExampleSentence($userId, $targetType, $targetId) {
-        $exampleSentence = ExampleSentence
-            ::where('user_id', $userId)
+    public function getExampleSentence($userId, $targetType, $targetId)
+    {
+        $exampleSentence = ExampleSentence::where('user_id', $userId)
             ->where('target_type', $targetType)
             ->where('target_id', $targetId)
             ->first();
-        
-        if (!$exampleSentence) {
+
+        if (! $exampleSentence) {
             return null;
         }
-        
+
         $textBlock = new TextBlockService($userId, $exampleSentence->language);
         $textBlock->setProcessedWords(json_decode($exampleSentence->words));
         $textBlock->uniqueWords = json_decode($exampleSentence->unique_words);
@@ -315,17 +322,17 @@ class VocabularyService {
         return $textBlock->getReaderData();
     }
 
-    public function createOrUpdateExampleSentence($userId, $language, $targetType, $targetId, $exampleSentenceWords) {
+    public function createOrUpdateExampleSentence($userId, $language, $targetType, $targetId, $exampleSentenceWords)
+    {
         // Retrieve example sentence.
-        $exampleSentence = ExampleSentence
-            ::where('user_id', $userId)
+        $exampleSentence = ExampleSentence::where('user_id', $userId)
             ->where('target_type', $targetType)
             ->where('target_id', $targetId)
             ->first();
 
         // Create new example sentence record if it didn't exist, and update words.
-        if (!$exampleSentence) {
-            $exampleSentence = new ExampleSentence();
+        if (! $exampleSentence) {
+            $exampleSentence = new ExampleSentence;
             $exampleSentence->user_id = $userId;
             $exampleSentence->language = $language;
             $exampleSentence->target_type = $targetType;
@@ -337,11 +344,11 @@ class VocabularyService {
         $uniqueWords = [];
         foreach ($exampleSentenceWords as $word) {
             $lowerCaseWord = mb_strtolower($word->word, 'UTF-8');
-            if (!in_array($lowerCaseWord, $uniqueWords, true)) {
+            if (! in_array($lowerCaseWord, $uniqueWords, true)) {
                 array_push($uniqueWords, $lowerCaseWord);
             }
         }
-        
+
         $textBlock = new TextBlockService($userId, $language);
         $textBlock->setProcessedWords($exampleSentenceWords);
         $textBlock->collectUniqueWords();
@@ -355,19 +362,19 @@ class VocabularyService {
         return true;
     }
 
-    public function searchVocabulary($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation, $page, $languagesWithoutSpaces) {
+    public function searchVocabulary($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation, $page, $languagesWithoutSpaces)
+    {
         // get books and chapters
         $books = Book::where('user_id', $userId)->where('language', $language)->get();
         $bookIndex = -1;
         for ($i = 0; $i < count($books); $i++) {
-            $books[$i]->chapters = Chapter
-                ::select(['id', 'name'])
+            $books[$i]->chapters = Chapter::select(['id', 'name'])
                 ->where('user_id', $userId)
                 ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
                 ->where('language', $language)
                 ->where('book_id', $books[$i]->id)
                 ->get();
-            
+
             if (isset($bookId) && $books[$i]->id == $bookId) {
                 $bookIndex = $i;
             }
@@ -375,23 +382,24 @@ class VocabularyService {
 
         $search = $this->buildSearchRequest($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation);
 
-        $data = new \stdClass();
+        $data = new \stdClass;
         $data->wordCount = $search->count();
         $data->words = $search->skip(($page - 1) * $this->itemsPerPage)->take($this->itemsPerPage)->get();
         $data->books = $books;
         $data->bookIndex = $bookIndex;
         $data->pageCount = ceil($data->wordCount / $this->itemsPerPage);
         $data->currentPage = $page;
-        $data->languageSpaces = !in_array($language, $languagesWithoutSpaces, true);
+        $data->languageSpaces = ! in_array($language, $languagesWithoutSpaces, true);
 
         return $data;
     }
 
-    public function exportToCsv($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation, $fields, $languagesWithoutSpaces) {    
+    public function exportToCsv($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation, $fields, $languagesWithoutSpaces)
+    {
         $words = $this->buildSearchRequest($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation)->get();
 
         // create csv file
-        $csv = Writer::createFromFileObject(new \SplTempFileObject());
+        $csv = Writer::createFromFileObject(new \SplTempFileObject);
         $csv->setDelimiter('|');
 
         // insert headers to csv
@@ -401,18 +409,18 @@ class VocabularyService {
                 $csvArray[] = str_replace('Stage', 'Level', $field['headerName']);
             }
         }
-        
+
         $csv->insertOne($csvArray);
 
         // insert data to csv
         $phraseWordDelimiter = in_array($language, $languagesWithoutSpaces, true) ? '' : ' ';
-        foreach($words as $word) {
+        foreach ($words as $word) {
             $csvArray = [];
             foreach ($fields as $field) {
-                if (!$field['export']) {
+                if (! $field['export']) {
                     continue;
                 }
-                
+
                 $searchObjectProperty = $field['searchObjectProperty'];
 
                 if ($word->type === 'phrase' && $searchObjectProperty === 'word') {
@@ -421,14 +429,15 @@ class VocabularyService {
                     $csvArray[] = $word->$searchObjectProperty;
                 }
             }
-            
+
             $csv->insertOne($csvArray);
         }
 
         return $csv;
     }
 
-    public function importFromCsv($userId, $language, $fileName, $delimiter, $onlyUpdate, $skipHeader) {
+    public function importFromCsv($userId, $language, $fileName, $delimiter, $onlyUpdate, $skipHeader)
+    {
         $stageMapping = [
             'new' => 2,
             'ignored' => 1,
@@ -443,7 +452,7 @@ class VocabularyService {
         ];
 
         DB::disableQueryLog();
-        $reader = Reader::createFromPath(storage_path('app/temp') . '/' . $fileName, 'r');
+        $reader = Reader::createFromPath(storage_path('app/temp').'/'.$fileName, 'r');
         $reader->setDelimiter($delimiter);
         $records = $reader->getRecords();
         $createdWords = 0;
@@ -452,9 +461,9 @@ class VocabularyService {
 
         // collect data from csv file
         DB::beginTransaction();
-        foreach($records as $index => $record) {
-            $lowerCaseWord = mb_strtolower($record[0]); 
-            
+        foreach ($records as $index => $record) {
+            $lowerCaseWord = mb_strtolower($record[0]);
+
             // skip header if option is enabled
             if ($index === 0 && $skipHeader) {
                 continue;
@@ -462,46 +471,50 @@ class VocabularyService {
 
             // reject word if contains space character
             if (str_contains($lowerCaseWord, ' ')) {
-                $rejectedWords ++;
+                $rejectedWords++;
+
                 continue;
             }
 
             // reject word if it's too long
             if (mb_strlen($lowerCaseWord) >= 255) {
-                $rejectedWords ++;
+                $rejectedWords++;
+
                 continue;
             }
 
             // reject word if word field is missing
             if (mb_strlen($lowerCaseWord) === 0) {
-                $rejectedWords ++;
+                $rejectedWords++;
+
                 continue;
             }
 
             // reject word if it's stage is stage is an incorrect value
             $stage = isset($record[5]) ? $record[5] : 'learned';
-            if (isset($record[5]) && !isset($stageMapping[$stage])) {
-                $rejectedWords ++;
+            if (isset($record[5]) && ! isset($stageMapping[$stage])) {
+                $rejectedWords++;
+
                 continue;
             }
 
             // try to retrieve word
-            $encounteredWord = EncounteredWord
-                ::where('user_id', $userId)
+            $encounteredWord = EncounteredWord::where('user_id', $userId)
                 ->where('language', $language)
                 ->where('word', $lowerCaseWord)
                 ->first();
 
             // if does not exist, create it
-            if (!$encounteredWord) {
+            if (! $encounteredWord) {
 
                 // reject word if does not exist and only update option is used
                 if ($onlyUpdate) {
-                    $rejectedWords ++;
+                    $rejectedWords++;
+
                     continue;
                 }
 
-                $encounteredWord = new EncounteredWord();
+                $encounteredWord = new EncounteredWord;
                 $encounteredWord->user_id = $userId;
                 $encounteredWord->language = $language;
                 $encounteredWord->word = $lowerCaseWord;
@@ -513,26 +526,26 @@ class VocabularyService {
                 $encounteredWord->stage = 0;
                 $encounteredWord->kanji = '';
 
-                $createdWords ++;
+                $createdWords++;
             } else {
-                $updatedWords ++;
+                $updatedWords++;
             }
 
             // set translation
             if (isset($record[1])) {
                 $encounteredWord->translation = $record[1];
             }
-            
+
             // set lemma
             if (isset($record[2])) {
                 $encounteredWord->base_word = $record[2];
             }
-            
+
             // set reading
             if (isset($record[3])) {
                 $encounteredWord->reading = $record[3];
             }
-            
+
             // set lemma reading
             if (isset($record[4])) {
                 $encounteredWord->base_word_reading = $record[4];
@@ -552,18 +565,19 @@ class VocabularyService {
 
         DB::commit();
 
-        $responseData = new \StdClass();
+        $responseData = new \StdClass;
         $responseData->createdWords = $createdWords;
         $responseData->updatedWords = $updatedWords;
         $responseData->rejectedWords = $rejectedWords;
-        
+
         return $responseData;
     }
 
     /*
         Builds a search request. It's used for both searching and exporting vocabulary.
     */
-    private function buildSearchRequest($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation) {
+    private function buildSearchRequest($userId, $language, $text, $bookId, $chapterId, $stage, $phrases, $orderBy, $translation)
+    {
         $wordsToSkip = config('linguacafe.words_to_skip');
 
         // get words and phrases
@@ -578,13 +592,12 @@ class VocabularyService {
         if ($chapterId !== -1) {
             $filteredChapters = $filteredChapters->where('id', $chapterId);
         }
-        
+
         $filteredChapters = $filteredChapters->get();
 
         if ($bookId !== -1) {
             foreach ($filteredChapters as $filteredChapter) {
-                $chapter = Chapter
-                    ::where('user_id', $userId)
+                $chapter = Chapter::where('user_id', $userId)
                     ->where('id', $filteredChapter->id)
                     ->first();
 
@@ -594,7 +607,7 @@ class VocabularyService {
                 foreach ($filteredChapterWords as $filteredChapterWord) {
                     $filteredChapterWord->phrase_ids = $filteredChapterWord->phrase_ids;
                     foreach ($filteredChapterWord->phrase_ids as $phraseId) {
-                        if (!in_array($phraseId, $filteredPhraseIds, true)) {
+                        if (! in_array($phraseId, $filteredPhraseIds, true)) {
                             array_push($filteredPhraseIds, $phraseId);
                         }
                     }
@@ -603,7 +616,7 @@ class VocabularyService {
                 // add filtered words
                 $filteredChapterUniqueWords = json_decode($filteredChapter->unique_words);
                 foreach ($filteredChapterUniqueWords as $filteredChapterUniqueWord) {
-                    if (!in_array($filteredChapterUniqueWord, $filteredWords, true)) {
+                    if (! in_array($filteredChapterUniqueWord, $filteredWords, true)) {
                         array_push($filteredWords, $filteredChapterUniqueWord);
                     }
                 }
@@ -611,15 +624,14 @@ class VocabularyService {
         }
 
         // search for words and apply filters
-        $wordSearch = EncounteredWord
-            ::select('id', 'base_word', 'word', DB::raw("'' AS words_searchable"), 'reading', 'base_word_reading', 'stage', 'translation', 'read_count', 'lookup_count', 'added_to_srs', DB::raw("'word' AS type"))->where('user_id', $userId)
+        $wordSearch = EncounteredWord::select('id', 'base_word', 'word', DB::raw("'' AS words_searchable"), 'reading', 'base_word_reading', 'stage', 'translation', 'read_count', 'lookup_count', 'added_to_srs', DB::raw("'word' AS type"))->where('user_id', $userId)
             ->where('language', $language)
             ->whereNotIn('word', $wordsToSkip);
 
         if ($text !== 'anytext') {
-            $wordSearch = $wordSearch->where(function($query) use ($text) {
-                $query->orWhere('word', 'like', '%' . $text . '%')
-                    ->orWhere('reading', 'like', '%' . $text . '%');
+            $wordSearch = $wordSearch->where(function ($query) use ($text) {
+                $query->orWhere('word', 'like', '%'.$text.'%')
+                    ->orWhere('reading', 'like', '%'.$text.'%');
             });
         }
 
@@ -634,17 +646,16 @@ class VocabularyService {
         if ($translation == 'not empty') {
             $wordSearch = $wordSearch->where('translation', '<>', '');
         }
-        
+
         // search for phrases and apply filters
-        $phraseSearch = Phrase
-            ::select('id', DB::raw("'' AS base_word"), 'words as word', 'words_searchable', 'reading', DB::raw("'' AS base_word_reading"), 'stage', 'translation', DB::raw("-1 AS read_count"), DB::raw("-1 AS lookup_count"), 'added_to_srs', DB::raw("'phrase' AS type"))
+        $phraseSearch = Phrase::select('id', DB::raw("'' AS base_word"), 'words as word', 'words_searchable', 'reading', DB::raw("'' AS base_word_reading"), 'stage', 'translation', DB::raw('-1 AS read_count'), DB::raw('-1 AS lookup_count'), 'added_to_srs', DB::raw("'phrase' AS type"))
             ->where('user_id', $userId)
             ->where('language', $language);
 
         if ($text !== 'anytext') {
-            $phraseSearch = $phraseSearch->where(function($query) use ($text) {
-                $query->orWhere('words_searchable', 'like', '%' . $text . '%')
-                    ->orWhere('reading', 'like', '%' . $text . '%');
+            $phraseSearch = $phraseSearch->where(function ($query) use ($text) {
+                $query->orWhere('words_searchable', 'like', '%'.$text.'%')
+                    ->orWhere('reading', 'like', '%'.$text.'%');
             });
         }
 
@@ -662,9 +673,9 @@ class VocabularyService {
 
         if ($phrases == 'only words') {
             $search = $wordSearch;
-        } else if ($phrases == 'only phrases') {
+        } elseif ($phrases == 'only phrases') {
             $search = $phraseSearch;
-        } else {  
+        } else {
             $search = $wordSearch->union($phraseSearch);
         }
 
@@ -689,20 +700,20 @@ class VocabularyService {
         return $search;
     }
 
-    public function searchKanji($userId, $language, $groupBy, $showUnknown) {
-        $words = EncounteredWord
-            ::where('user_id', $userId)
+    public function searchKanji($userId, $language, $groupBy, $showUnknown)
+    {
+        $words = EncounteredWord::where('user_id', $userId)
             ->where('stage', 0)
             ->where('language', $language)
             ->where('kanji', '<>', '')
             ->get();
-        
+
         // get knwon kanji
         $knownKanji = [];
         foreach ($words as $word) {
-            $wordKanji = preg_split("//u", $word->kanji, -1, PREG_SPLIT_NO_EMPTY);
-            foreach($wordKanji as $currentKanji) {
-                if(!in_array($currentKanji, $knownKanji, true)) {
+            $wordKanji = preg_split('//u', $word->kanji, -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($wordKanji as $currentKanji) {
+                if (! in_array($currentKanji, $knownKanji, true)) {
                     array_push($knownKanji, $currentKanji);
                 }
             }
@@ -710,19 +721,19 @@ class VocabularyService {
 
         // get kanji list
         if ($groupBy == 'grade') {
-            $kanji = Kanji::where(function($query) use($knownKanji) {
+            $kanji = Kanji::where(function ($query) use ($knownKanji) {
                 $query->where('grade', '>', 0)->orWhereIn('kanji', $knownKanji);
             });
         } else {
-            $kanji = Kanji::where(function($query) use($knownKanji) {
+            $kanji = Kanji::where(function ($query) use ($knownKanji) {
                 $query->where('jlpt', '>', 0)->orWhereIn('kanji', $knownKanji);
             });
         }
 
-        if (!$showUnknown) {
+        if (! $showUnknown) {
             $kanji = $kanji->whereIn('kanji', $knownKanji);
         }
-        
+
         $kanji = $kanji->get();
 
         // label kanji list
@@ -736,36 +747,31 @@ class VocabularyService {
         } else {
             $kanji = $kanji->groupBy('jlpt');
         }
-        
 
         // get count for statistics
         if ($groupBy == 'grade') {
-            $totalCount = Kanji
-                ::select('grade', DB::raw('count(id) as total'))
+            $totalCount = Kanji::select('grade', DB::raw('count(id) as total'))
                 ->groupBy('grade')
                 ->get()
                 ->keyBy('grade');
 
-            $knownCount = Kanji
-                ::select('grade', DB::raw('count(id) as total'))
+            $knownCount = Kanji::select('grade', DB::raw('count(id) as total'))
                 ->whereIn('kanji', $knownKanji)->groupBy('grade')
                 ->get()
                 ->keyBy('grade');
         } else {
-            $totalCount = Kanji
-                ::select('jlpt', DB::raw('count(id) as total'))
+            $totalCount = Kanji::select('jlpt', DB::raw('count(id) as total'))
                 ->groupBy('jlpt')
                 ->get()
                 ->keyBy('jlpt');
 
-            $knownCount = Kanji
-                ::select('jlpt', DB::raw('count(id) as total'))
+            $knownCount = Kanji::select('jlpt', DB::raw('count(id) as total'))
                 ->whereIn('kanji', $knownKanji)->groupBy('jlpt')
                 ->get()
                 ->keyBy('jlpt');
         }
-        
-        $searchResults = new \stdClass();
+
+        $searchResults = new \stdClass;
         $searchResults->kanji = $kanji;
         $searchResults->total = $totalCount;
         $searchResults->known = $knownCount;
@@ -773,27 +779,25 @@ class VocabularyService {
         return $searchResults;
     }
 
-    public function getKanjiDetails($userId, $kanjiCharacter) {
-        $kanjiData = Kanji
-            ::where('kanji', $kanjiCharacter)
+    public function getKanjiDetails($userId, $kanjiCharacter)
+    {
+        $kanjiData = Kanji::where('kanji', $kanjiCharacter)
             ->first();
-        
-        if (!$kanjiData) {
+
+        if (! $kanjiData) {
             throw new \Exception('Kanji not found in database.');
         }
 
-        $words = EncounteredWord
-            ::where('word', 'like', '%' . $kanjiCharacter . '%')
+        $words = EncounteredWord::where('word', 'like', '%'.$kanjiCharacter.'%')
             ->where('user_id', $userId)
             ->limit(12)
             ->get();
 
-        $radicals = Radical
-            ::select('radicals')
+        $radicals = Radical::select('radicals')
             ->where('kanji', $kanjiCharacter)
             ->first();
-        
-        $kanjiDetails = new \stdClass();
+
+        $kanjiDetails = new \stdClass;
         $kanjiDetails->kanji = $kanjiData;
         $kanjiDetails->radicals = $radicals->radicals;
         $kanjiDetails->words = $words;

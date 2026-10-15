@@ -25,7 +25,7 @@ class CreateEncounteredWordsTable extends Migration
             $table->text('example_sentence');
             $table->timestamps();
 
-            //stage
+            // stage
             // -10 -> -1 strength
             // 0 learned
             // 1 ignored

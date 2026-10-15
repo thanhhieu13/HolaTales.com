@@ -14,7 +14,7 @@
             maxlength="250000"
             counter="250000"
             no-resize
-            @keyup="textChanged"
+            @input="textChanged"
         ></v-textarea>
     </div>
 </template>

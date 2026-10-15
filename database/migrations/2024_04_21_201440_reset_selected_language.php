@@ -1,11 +1,8 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-use App\Services\GoalService;
 use App\Models\User;
+use App\Services\GoalService;
+use Illuminate\Database\Migrations\Migration;
 
 class ResetSelectedLanguage extends Migration
 {
@@ -16,7 +13,7 @@ class ResetSelectedLanguage extends Migration
      */
     public function up()
     {
-        $goalService = new GoalService();
+        $goalService = new GoalService;
         $users = User::get();
 
         foreach ($users as $user) {

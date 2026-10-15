@@ -2,34 +2,31 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Client\Pool;
-use League\Csv\Reader;
-
-// models
-use App\Models\Dictionary;
-use App\Models\Setting;
 use App\Models\DeeplCache;
+use App\Models\Dictionary;
 use App\Models\ImportedDictionary;
+use App\Models\Setting;
+// models
 use App\Models\VocabularyJmdict;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 
-class DictionaryService {
+class DictionaryService
+{
+    public function __construct() {}
 
-    public function __construct() {
-    }
-
-    public function getDictionaries() {
+    public function getDictionaries()
+    {
         $dictionaries = Dictionary::get();
 
         foreach ($dictionaries as $dictionary) {
             if ($dictionary->database_table_name == 'API') {
                 $dictionary->records = '-';
             } else {
-                $dictionary->records = DB
-                    ::table($dictionary->database_table_name)
+                $dictionary->records = DB::table($dictionary->database_table_name)
                     ->selectRaw('count(*) as record_count')
                     ->get();
 
@@ -40,16 +37,15 @@ class DictionaryService {
         return $dictionaries;
     }
 
-    public function getDictionary($dictionaryId) {
-        $dictionary = Dictionary
-            ::where('id', $dictionaryId)
+    public function getDictionary($dictionaryId)
+    {
+        $dictionary = Dictionary::where('id', $dictionaryId)
             ->first();
 
         if ($dictionary->database_table_name == 'API') {
             $dictionary->records = '-';
         } else {
-            $dictionary->records = DB
-                ::table($dictionary->database_table_name)
+            $dictionary->records = DB::table($dictionary->database_table_name)
                 ->selectRaw('count(*) as record_count')
                 ->get();
 
@@ -59,12 +55,12 @@ class DictionaryService {
         return $dictionary;
     }
 
-    public function updateDictionary($dictionaryId, $dictionaryData) {
-        $dictionary = Dictionary
-            ::where('id', $dictionaryId)
+    public function updateDictionary($dictionaryId, $dictionaryData)
+    {
+        $dictionary = Dictionary::where('id', $dictionaryId)
             ->first();
 
-        if (!$dictionary) {
+        if (! $dictionary) {
             throw new \Exception('Dictionary not found.');
         }
 
@@ -82,46 +78,52 @@ class DictionaryService {
     {
         $apiDictionary = Dictionary::query()
             ->where('enabled', true)
-            ->where('database_table_name','API')
+            ->where('database_table_name', 'API')
             ->where('source_language', $language)
             ->first();
 
         return boolval($apiDictionary);
     }
 
-    public function getDeeplCharacterLimit() {
+    public function getDeeplCharacterLimit()
+    {
         // retrieve api key from database
         $deeplApiKeySetting = Setting::where('name', 'deeplApiKey')->first();
         $deeplApiKey = json_decode($deeplApiKeySetting->value);
         $deeplHost = Setting::where('name', 'deeplHost')->first()->decode();
 
-        $response = HTTP::withHeaders([
-            'Authorization' => 'DeepL-Auth-Key ' . $deeplApiKey,
+        $response = Http::withHeaders([
+            'Authorization' => 'DeepL-Auth-Key '.$deeplApiKey,
             'Content-Type' => 'application/json',
-        ])->get($deeplHost . '/usage');
+        ])->connectTimeout(3)->timeout(8)->get($deeplHost.'/usage');
+
+        $limits = $response->json();
+        if (! $response->successful() || ! is_numeric($limits['character_count'] ?? null) || ! is_numeric($limits['character_limit'] ?? null)) {
+            throw new \RuntimeException('DeepL chưa được cấu hình hợp lệ hoặc không khả dụng.');
+        }
 
         return [
-            'limits' => json_decode($response->body()),
+            'limits' => (object) $limits,
             'cachedDeeplTranslations' => DeeplCache::select('id')->count('id'),
         ];
     }
 
-    public function searchDefinitions($language, $term) {
+    public function searchDefinitions($language, $term)
+    {
         $searchResultDictionaries = [];
-        $dictionaries = Dictionary
-            ::where('enabled', true)
+        $dictionaries = Dictionary::where('enabled', true)
             ->where('source_language', $language)
             ->get();
 
         // go through each dictionary and search in them
         foreach ($dictionaries as $dictionary) {
-            $searchResultDictionary = new \stdClass();
+            $searchResultDictionary = new \stdClass;
             $searchResultDictionary->name = $dictionary->name;
             $searchResultDictionary->color = $dictionary->color;
-            
+
             if ($dictionary->name === 'JMDict') {
                 $searchResultDictionary->jmdictRecords = $this->searchJmDict($term);
-            } else if($dictionary->type === 'supported' || $dictionary->type === 'custom_csv') {
+            } elseif ($dictionary->type === 'supported' || $dictionary->type === 'custom_csv') {
                 $searchResultDictionary->records = $this->searchImportedDictionary($dictionary->database_table_name, $term);
             } else {
                 continue;
@@ -134,12 +136,12 @@ class DictionaryService {
     }
 
     // This function returns a list of exact matches from dictionaries for the hover popup vocabulary.
-    public function searchDefinitionsForHoverVocabulary($language, $term) {
+    public function searchDefinitionsForHoverVocabulary($language, $term)
+    {
         $limit = 9;
         $searchResults = [];
-        
-        $dictionaries = Dictionary
-            ::where('enabled', true)
+
+        $dictionaries = Dictionary::where('enabled', true)
             ->where('source_language', $language)
             ->get();
 
@@ -150,7 +152,7 @@ class DictionaryService {
             // make search based on dictionary type
             if ($dictionary->name == 'JMDict') {
                 $searchRecords = $this->searchJmDict($term, true);
-            } else if ($dictionary->database_table_name == 'API') {
+            } elseif ($dictionary->database_table_name == 'API') {
                 // skip dictionary if it's an api
                 continue;
             } else {
@@ -164,7 +166,7 @@ class DictionaryService {
                     if (count($searchResults) > $limit) {
                         break;
                     }
-                    
+
                     // add definitions based on dictionary type
                     if ($dictionary->name == 'JMDict') {
                         foreach (explode(',', $definition) as $splitDefinition) {
@@ -181,13 +183,13 @@ class DictionaryService {
             Return the found definitions and the search term. Search
             term must be returned so the client knows which request it.
         */
-        $result = new \stdClass();
+        $result = new \stdClass;
         $result->term = $term;
         $result->definitions = array_values(array_unique($searchResults));
 
         return $result;
     }
-    
+
     public function searchApiDictionaries(string $sourceLanguage, string $term): array
     {
         $definitions = [];
@@ -200,11 +202,11 @@ class DictionaryService {
 
         $responseAdditionalInfo = [];
         $responses = Http::pool(function (Pool $pool) use (
-                $apiDictionaries, 
-                $term,
-                $termHash,
-                &$definitions,
-                &$responseAdditionalInfo,
+            $apiDictionaries,
+            $term,
+            $termHash,
+            &$definitions,
+            &$responseAdditionalInfo,
         ) {
             foreach ($apiDictionaries as $dictionary) {
 
@@ -216,7 +218,7 @@ class DictionaryService {
                         ->where('target_language', $dictionary->target_language)
                         ->where('hash', $termHash)
                         ->first();
-                
+
                     if ($cache) {
                         $definitions[] = [
                             'dictionary' => $dictionary->name,
@@ -232,7 +234,7 @@ class DictionaryService {
                             'targetLanguage' => $dictionary->target_language,
                             'term' => $term,
                         ];
-                        
+
                         $this->buildDeeplRequest($pool, $dictionary, $term);
                     }
                 }
@@ -276,15 +278,15 @@ class DictionaryService {
         });
 
         // format dictionary search responses to a unified format
-        foreach($responses as $responseIndex => $response) {
+        foreach ($responses as $responseIndex => $response) {
             if (
-                !$response instanceof \Illuminate\Http\Client\Response || 
-                is_null($response->toPsrResponse()) || 
-                !$response->ok()
+                ! $response instanceof Response ||
+                is_null($response->toPsrResponse()) ||
+                ! $response->ok()
             ) {
                 $definitions[] = [
                     'definitions' => ['error'],
-                    ...$responseAdditionalInfo[$responseIndex]
+                    ...$responseAdditionalInfo[$responseIndex],
                 ];
 
                 continue;
@@ -296,7 +298,7 @@ class DictionaryService {
             if ($dictionaryType === 'deepl') {
                 $definition = json_decode($response->body())->translations[0]->text;
 
-                $deeplCache = new DeeplCache();
+                $deeplCache = new DeeplCache;
                 $deeplCache->source_language = $sourceLanguage;
                 $deeplCache->target_language = $responseAdditionalInfo[$responseIndex]['targetLanguage'];
                 $deeplCache->hash = $termHash;
@@ -307,16 +309,15 @@ class DictionaryService {
 
                 $definitions[] = [
                     'definitions' => [$definition],
-                    ...$responseAdditionalInfo[$responseIndex]
+                    ...$responseAdditionalInfo[$responseIndex],
                 ];
             }
-            
-            
+
             if ($dictionaryType === 'my_memory') {
                 $myMemoryDefinitions = [];
                 $matches = json_decode($response->body());
-                foreach($matches->matches as $match) {
-                    if(!str_contains($match->segment, $responseAdditionalInfo[$responseIndex]['term'])) {
+                foreach ($matches->matches as $match) {
+                    if (! str_contains($match->segment, $responseAdditionalInfo[$responseIndex]['term'])) {
                         continue;
                     }
 
@@ -326,13 +327,13 @@ class DictionaryService {
                     $myMemoryDefinitions[] = $match->translation;
                 }
 
-                if (!count($myMemoryDefinitions)) {
+                if (! count($myMemoryDefinitions)) {
                     continue;
                 }
 
                 $definitions[] = [
                     'definitions' => $myMemoryDefinitions,
-                    ...$responseAdditionalInfo[$responseIndex]
+                    ...$responseAdditionalInfo[$responseIndex],
                 ];
             }
 
@@ -340,7 +341,7 @@ class DictionaryService {
                 $response = json_decode($response->body());
                 $definitions[] = [
                     'definitions' => [$response->translatedText],
-                    ...$responseAdditionalInfo[$responseIndex]
+                    ...$responseAdditionalInfo[$responseIndex],
                 ];
             }
 
@@ -348,7 +349,7 @@ class DictionaryService {
                 $response = json_decode($response->body());
                 $definitions[] = [
                     'definitions' => [$response->translatedText],
-                    ...$responseAdditionalInfo[$responseIndex]
+                    ...$responseAdditionalInfo[$responseIndex],
                 ];
             }
         }
@@ -362,7 +363,7 @@ class DictionaryService {
         $deeplHost = Setting::where('name', 'deeplHost')->first()->decode();
         $deeplLanguageCodes = config('linguacafe.languages.deepl_language_codes');
 
-        // DeepL does not support 'EN-US' for source language 
+        // DeepL does not support 'EN-US' for source language
         // and 'PT-PT' for language, so I replace them
         $sourceLanguageCode = $deeplLanguageCodes[$dictionary->source_language];
         if ($sourceLanguageCode === 'EN-US') {
@@ -374,12 +375,12 @@ class DictionaryService {
         }
 
         $pool->withHeaders([
-            'Authorization' => 'DeepL-Auth-Key ' . $deeplApiKey,
+            'Authorization' => 'DeepL-Auth-Key '.$deeplApiKey,
             'Content-Type' => 'application/json',
-        ])->post($deeplHost . '/translate', [
+        ])->post($deeplHost.'/translate', [
             'text' => [$term],
-            "source_lang" => $sourceLanguageCode,
-            "target_lang" => $deeplLanguageCodes[$dictionary->target_language],
+            'source_lang' => $sourceLanguageCode,
+            'target_lang' => $deeplLanguageCodes[$dictionary->target_language],
         ]);
     }
 
@@ -388,7 +389,7 @@ class DictionaryService {
         $myMemoryLanguageCodes = config('linguacafe.languages.my_memory_supported_target_languages');
         $sourceLanguageCode = $myMemoryLanguageCodes[$dictionary->source_language];
         $targetLanguageCode = $myMemoryLanguageCodes[$dictionary->target_language];
-        $pool->get('https://api.mymemory.translated.net/get?q=' . urlencode($term) . '!&langpair=' . $sourceLanguageCode . '|' . $targetLanguageCode);
+        $pool->get('https://api.mymemory.translated.net/get?q='.urlencode($term).'!&langpair='.$sourceLanguageCode.'|'.$targetLanguageCode);
     }
 
     private function buildLibreTranslateRequest(Pool $pool, Dictionary $dictionary, string $term): void
@@ -412,13 +413,13 @@ class DictionaryService {
             'target' => strtolower($dictionary->target_language),
         ]);
     }
-    
-    public function searchInflections($term) {
+
+    public function searchInflections($term)
+    {
         $ids = [];
-        
+
         // exact word matches
-        $search = VocabularyJmdict
-            ::select('id')
+        $search = VocabularyJmdict::select('id')
             ->whereRelation('words', 'word', 'like', $term)
             ->get()
             ->toArray();
@@ -428,14 +429,13 @@ class DictionaryService {
                 break;
             }
 
-            if (!in_array($result, $ids, true)) {
+            if (! in_array($result, $ids, true)) {
                 array_push($ids, $result);
             }
         }
 
         // exact reading matches
-        $search = VocabularyJmdict
-            ::select('id')
+        $search = VocabularyJmdict::select('id')
             ->whereRelation('readings', 'reading', 'like', $term)
             ->get()
             ->toArray();
@@ -445,16 +445,15 @@ class DictionaryService {
                 break;
             }
 
-            if (!in_array($result, $ids, true)) {
+            if (! in_array($result, $ids, true)) {
                 array_push($ids, $result);
             }
         }
 
-        $search = VocabularyJmdict
-            ::select('conjugations')
+        $search = VocabularyJmdict::select('conjugations')
             ->whereIn('id', $ids)
             ->first();
-        
+
         if ($search) {
             return $search->conjugations;
         } else {
@@ -462,48 +461,48 @@ class DictionaryService {
         }
     }
 
-    public function getDictionaryRecordCount($dictionaryTableName) {
-        if (!Schema::hasTable($dictionaryTableName)) {
+    public function getDictionaryRecordCount($dictionaryTableName)
+    {
+        if (! Schema::hasTable($dictionaryTableName)) {
             throw new \Exception('Table not found.');
         }
 
         $recordCount = DB::table($dictionaryTableName)->count();
-        
+
         return $recordCount;
     }
 
-    public function deleteDictionary($dictionaryId) {
-        $dictionary = Dictionary
-            ::where('id', $dictionaryId)
+    public function deleteDictionary($dictionaryId)
+    {
+        $dictionary = Dictionary::where('id', $dictionaryId)
             ->first();
 
-        if (!$dictionary) {
+        if (! $dictionary) {
             throw new \Exception('Dictionary does not exist.');
         }
 
-        if($dictionary->database_table_name !== 'API') {
+        if ($dictionary->database_table_name !== 'API') {
             Schema::drop($dictionary->database_table_name);
         }
-        
+
         Dictionary::where('id', $dictionaryId)->delete();
 
         return true;
     }
 
-    private function searchImportedDictionary($dictionaryTable, $term, $strict = false) {
+    private function searchImportedDictionary($dictionaryTable, $term, $strict = false)
+    {
         $records = [];
-        
+
         // if strict is true, only return exact matches
         if ($strict) {
-            $dictionaryWords = ImportedDictionary
-                ::fromTable($dictionaryTable)
+            $dictionaryWords = ImportedDictionary::fromTable($dictionaryTable)
                 ->where('word', $term)
                 ->limit(40)
                 ->get();
         } else {
-            $dictionaryWords = ImportedDictionary
-                ::fromTable($dictionaryTable)
-                ->where('word', 'LIKE', $term . '%')
+            $dictionaryWords = ImportedDictionary::fromTable($dictionaryTable)
+                ->where('word', 'LIKE', $term.'%')
                 ->orderByRaw('LENGTH(word)')
                 ->limit(40)
                 ->get();
@@ -511,7 +510,7 @@ class DictionaryService {
 
         foreach ($dictionaryWords as $word) {
             $definitions = explode(';', $word->definitions);
-            
+
             if (strlen($word->definitions) === 0) {
                 continue;
             }
@@ -520,16 +519,16 @@ class DictionaryService {
             $duplicate = false;
             foreach ($records as $record) {
                 if ($record->word == $word->word) {
-                    if (!in_array($word->definitions, $record->definitions, true)) {
+                    if (! in_array($word->definitions, $record->definitions, true)) {
                         $record->definitions[] = $word->definitions;
                     }
-                    
+
                     $duplicate = true;
                 }
             }
 
-            if (!$duplicate) {
-                $record = new \stdClass();
+            if (! $duplicate) {
+                $record = new \stdClass;
                 $record->word = $word->word;
                 $record->definitions = $definitions;
                 $records[] = $record;
@@ -539,12 +538,13 @@ class DictionaryService {
         return $records;
     }
 
-    private function searchJmDict($term, $strict = false) {
+    private function searchJmDict($term, $strict = false)
+    {
         $ids = [];
         // exact word matches
         $search = VocabularyJmdict::select('id')->whereRelation('words', 'word', $term)->get()->toArray();
         foreach ($search as $result) {
-            if (!in_array($result, $ids, true)) {
+            if (! in_array($result, $ids, true)) {
                 array_push($ids, $result);
             }
         }
@@ -552,35 +552,35 @@ class DictionaryService {
         // exact reading matches
         $search = VocabularyJmdict::select('id')->whereRelation('readings', 'reading', $term)->get()->toArray();
         foreach ($search as $result) {
-            if (!in_array($result, $ids, true)) {
+            if (! in_array($result, $ids, true)) {
                 array_push($ids, $result);
             }
         }
 
         // if strict is true, do not return partial matches
-        if (!$strict) {
+        if (! $strict) {
             // partial word matches, max 10
-            $search = VocabularyJmdict::select('id')->whereRelation('words', 'word', 'like', $term . '%')->get()->toArray();
+            $search = VocabularyJmdict::select('id')->whereRelation('words', 'word', 'like', $term.'%')->get()->toArray();
             foreach ($search as $result) {
-                if (!in_array($result, $ids, true) && count($ids) < 10) {
+                if (! in_array($result, $ids, true) && count($ids) < 10) {
                     array_push($ids, $result);
                 }
             }
 
             // partial reading matches, max 10
-            $search = VocabularyJmdict::select('id')->whereRelation('readings', 'reading', 'like', $term . '%')->get()->toArray();
+            $search = VocabularyJmdict::select('id')->whereRelation('readings', 'reading', 'like', $term.'%')->get()->toArray();
             foreach ($search as $result) {
-                if (!in_array($result, $ids, true) && count($ids) < 10) {
+                if (! in_array($result, $ids, true) && count($ids) < 10) {
                     array_push($ids, $result);
                 }
             }
         }
 
         $search = VocabularyJmdict::with('words:word,id,dict_jp_jmdict_id')->with('readings:reading,word_restrictions,id,dict_jp_jmdict_id')->whereIn('id', $ids)->get();
-        
+
         $translations = [];
         foreach ($search as $result) {
-            $translation = new \stdClass();
+            $translation = new \stdClass;
             $translation->words = [];
             $translation->definitions = [];
             $translation->conjugations = $result->conjugations == '' ? [] : json_decode($result->conjugations);
@@ -588,7 +588,7 @@ class DictionaryService {
             $dictionaryDefinitions = json_decode($result->translations);
             foreach ($dictionaryDefinitions as $definition) {
                 if (count($definition->restrictions)) {
-                    array_push($translation->definitions, '(' . implode(', ', $definition->restrictions) . ') ' . $definition->definition);
+                    array_push($translation->definitions, '('.implode(', ', $definition->restrictions).') '.$definition->definition);
                 } else {
                     array_push($translation->definitions, $definition->definition);
                 }
@@ -598,7 +598,7 @@ class DictionaryService {
             foreach ($result->words as $word) {
                 // get all possible readings for each word forms
                 foreach ($result->readings as $reading) {
-                    array_push($translation->words, $word->word . ' (' . $reading->reading . ')');
+                    array_push($translation->words, $word->word.' ('.$reading->reading.')');
                 }
             }
 

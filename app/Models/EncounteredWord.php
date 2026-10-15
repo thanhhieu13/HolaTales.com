@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
-
+use App\Services\GoalService;
+use App\Services\LearningClock;
 // models
-use App\Models\Setting;
 
 // services
-use App\Services\GoalService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class EncounteredWord extends Model
 {
@@ -33,13 +31,14 @@ class EncounteredWord extends Model
         'updated_at',
     ];
 
-    public function setStage($stage, $ignoreAchivement = false) {
-       
+    public function setStage($stage, $ignoreAchivement = false)
+    {
+
         // if it's a newly saved word, update today's achievement
-        if ($this->stage >= 0 && $stage < 0 && !$ignoreAchivement) {
-            (new GoalService())->updateGoalAchievement($this->user_id, $this->language, 'learn_words', 1);
+        if ($this->stage >= 0 && $stage < 0 && ! $ignoreAchivement) {
+            (new GoalService)->updateGoalAchievement($this->user_id, $this->language, 'learn_words', 1);
         }
-        
+
         if ($this->stage >= 0 && $stage < 0 && $stage !== -7) {
             $this->relearning = true;
         }
@@ -58,8 +57,8 @@ class EncounteredWord extends Model
             $possibleDates = $reviewIntervals->$stageString;
             $nextReviewIndex = 0;
             for ($i = 0; $i < count($possibleDates); $i++) {
-                $data = new \stdClass();
-                $data->date = Carbon::now()->addDays($possibleDates[$i])->toDateString();
+                $data = new \stdClass;
+                $data->date = LearningClock::now($this->user_id)->addDays($possibleDates[$i])->toDateString();
                 $data->count = EncounteredWord::where('user_id', $this->user_id)->where('next_review', $data->date)->count();
                 $possibleDates[$i] = $data;
 
@@ -67,10 +66,10 @@ class EncounteredWord extends Model
                     $nextReviewIndex = $i;
                 }
             }
-            
+
             $this->next_review = $possibleDates[$nextReviewIndex]->date;
             if (is_null($this->added_to_srs)) {
-                $this->added_to_srs = Carbon::now()->toDateString();
+                $this->added_to_srs = LearningClock::now($this->user_id)->toDateString();
             }
         } else {
             $this->next_review = null;

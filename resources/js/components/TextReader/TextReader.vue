@@ -9,11 +9,12 @@
         <div id="reader-box" :style="{'max-width': maximumTextWidthData[settings.maximumTextWidth]}" v-if="chapterId !== null">
             <div id="toolbar-box">
                 <div v-if="!finished && !saving" id="toolbar" :class="{'d-flex': true}" :style="{'top': toolbarTop + 'px'}">
-                    <v-btn title="Fullscreen" icon @click="fullscreen" v-if="!fullscreenMode"><v-icon>mdi-arrow-expand-all</v-icon></v-btn>
-                    <v-btn title="Exit fullscreen" icon @click="exitFullscreen" v-if="fullscreenMode"><v-icon>mdi-arrow-collapse-all</v-icon></v-btn>
+                    <v-btn v-if="$vuetify.breakpoint.smAndDown" title="Navigation" icon @click="$root.$emit('toggle-navigation')"><v-icon>mdi-menu</v-icon></v-btn>
+                    <v-btn :title="$t('focus')" icon @click="fullscreen" v-if="!fullscreenMode"><v-icon>mdi-arrow-expand-all</v-icon></v-btn>
+                    <v-btn title="Exit focus mode" icon @click="exitFullscreen" v-if="fullscreenMode"><v-icon>mdi-arrow-collapse-all</v-icon></v-btn>
                     <v-btn title="Text reader settings" icon @click="openDialog('settings')"><v-icon>mdi-cog</v-icon></v-btn>
-                    <v-btn title="Chapters" icon @click="openDialog('chapters')"><v-icon>mdi-book-alphabet</v-icon></v-btn>
-                    <v-btn title="Glossary" icon @click="openDialog('glossary')"><v-icon>mdi-translate</v-icon></v-btn>
+                    <v-btn :title="$t('chapters')" icon @click="openDialog('chapters')"><v-icon>mdi-book-alphabet</v-icon></v-btn>
+                    <v-btn :title="$t('glossary')" icon @click="openDialog('glossary')"><v-icon>mdi-translate</v-icon></v-btn>
                     <v-btn title="Increase font size" icon @click="increaseFontSize"><v-icon>mdi-magnify-plus</v-icon></v-btn>
                     <v-btn title="Decrease font size" icon @click="decreaseFontSize"><v-icon>mdi-magnify-minus</v-icon></v-btn>
                     <v-btn title="Toggle plain text mode" icon @click="settings.plainTextMode = !settings.plainTextMode; toolbarSettingChanged();"><v-icon :color="settings.plainTextMode ? 'primary' : ''">mdi-marker</v-icon></v-btn>
@@ -44,6 +45,11 @@
                 v-model="dialogs.glossary"
             ></text-reader-glossary>
 
+            <v-alert v-if="!finished && !saving" dense outlined type="info" class="rounded-lg">
+                Chạm vào một từ để xem nghĩa. Chọn mức 7 để thêm từ mới vào lượt ôn hôm nay; mức 1 dành cho từ gần thuộc.
+                Nghĩa được lưu khi bỏ chọn từ hoặc hoàn thành lượt đọc.
+            </v-alert>
+
             <!-- Text -->
             <v-card
                 :outlined="theme !== 'eink'"
@@ -58,7 +64,7 @@
                 }"
                 :style="{
                     'height': $vuetify.breakpoint.mdAndUp ? 'calc(100% - 24px - 24px)' : 'calc(100% - 24px - 24px - 64px)',
-                    'padding-right': settings.vocabularySidebar && vocabularySidebarFits ? '400px !important' : '0px'
+                    'padding-right': settings.vocabularySidebar && vocabularySidebarFits && !fullscreenMode ? '400px !important' : '0px'
                 }"
             >
                 <v-card-text id="reader-content" :class="{
@@ -71,6 +77,7 @@
                     <div id="chapter-name" class="mb-4 selected-font" :style="{'font-size': (settings.fontSize + 4) + 'px'}">
                         {{ chapterName }}
                     </div>
+
 
                     <text-block-group
                         v-if="text !== null"
@@ -92,7 +99,7 @@
                         :vocabulary-hover-box-search="settings.vocabularyHoverBoxSearch"
                         :vocabulary-hover-box-delay="settings.vocabularyHoverBoxDelay"
                         :vocabulary-hover-box-preferred-position="settings.vocabularyHoverBoxPreferredPosition"
-                        :vocabulary-sidebar="settings.vocabularySidebar"
+                        :vocabulary-sidebar="settings.vocabularySidebar && !fullscreenMode"
                         :vocabulary-bottom-sheet="settings.vocabularyBottomSheet"
                         :auto-highlight-words="settings.autoHighlightWords"
                         :show-subtitle-timestamps="settings.showSubtitleTimestamps"
@@ -103,13 +110,26 @@
                         @decrease-font-size="decreaseFontSize"
                         @toggle-plain-text-mode="togglePlainTextMode"
                     ></text-block-group>
+            <v-card outlined class="rounded-lg pa-4 mb-4" v-if="chapterId && !finished">
+                <div class="d-flex align-center"><strong>Bản dịch {{ translationLanguages[translationTarget] }}</strong><v-spacer/><v-btn text small @click="translationVisible = !translationVisible">{{ translationVisible ? 'Ẩn bản dịch' : 'Hiện bản dịch' }}</v-btn></div>
+                <div v-if="translationVisible">
+                    <v-select label="Dịch sang" :items="Object.entries(translationLanguages).map(([value,text]) => ({value,text}))" v-model="translationTarget" :disabled="translationLoading" @change="translatedStory = ''; translateStory(false)" dense outlined></v-select>
+                    <p class="text-caption mt-2">Đổi mục này chỉ đổi bản dịch truyện; ngôn ngữ nghĩa từ được đặt trong Thiết lập học. {{ translationReviewStatus === 'approved' ? 'Bản dịch đã được biên tập và duyệt.' : (translationProvider.startsWith('Ollama:') ? 'Bản dịch AI local · '+translationProvider.replace('Ollama:', '').replace(/:literary-v\d+$/, '')+' — cần đối chiếu với bản gốc.' : (translationProvider ? 'Bản dịch máy '+translationProvider+' chỉ để tham khảo.' : 'Bản dịch tự động cần đối chiếu với bản gốc.')) }} Nghĩa trong ngữ cảnh có thể khác nghĩa của từng từ.</p>
+                    <p v-if="positionError" role="alert">{{ positionError }}</p>
+                    <div v-if="translationLoading" role="status">Đang dịch truyện…</div>
+                    <p v-if="translatedStory" style="white-space:pre-wrap">{{ translatedStory }}</p>
+                    <v-alert v-if="translationError" dense type="warning" role="alert">{{ translationError }}</v-alert>
+                    <p v-if="translationConsent">Nội dung riêng sẽ được gửi sang MyMemory để dịch. Chỉ tiếp tục nếu bạn đồng ý.</p>
+                    <v-btn v-if="!translationLoading && !translatedStory" rounded color="primary" @click="translateStory(translationConsent)">{{ translationConsent ? 'Đồng ý gửi văn bản và dịch' : 'Dịch lại' }}</v-btn>
+                </div>
+            </v-card>
                     <div :class="{
                         'd-flex': true,
                         'mt-16': $vuetify.breakpoint.smAndUp,
                         'mb-3': $vuetify.breakpoint.xsOnly,
                     }">
                         <v-spacer></v-spacer>
-                        <v-btn rounded color="primary" @click="finish()"><v-icon>mdi-text-box-check</v-icon> Finish reading</v-btn>
+                        <v-btn rounded color="primary" @click="finish()"><v-icon>mdi-text-box-check</v-icon> {{ $t('finish_reading') }}</v-btn>
                     </div>
                 </v-card-text>
             </v-card>&nbsp;
@@ -277,6 +297,10 @@
                 chapterId: null,
                 wordCount: 0,
                 chapterName: null,
+                heartbeatTimer: null, heartbeatTab: null, lastReaderActivity: Date.now(),
+                positionHash: '', positionTimer: null, positionRestored: false, positionError: '',
+                translationGeneration: 0, translationTimer: null, translationPending: false,
+                translationTarget: document.querySelector('meta[name="translation-target"]')?.content || 'en', translationLanguages: JSON.parse(document.querySelector('meta[name="translation-languages"]')?.content || '{}'), translatedStory: '', translationProvider: '', translationReviewStatus: '', translationLoading: false, translationError: '', translationConsent: false, translationVisible: true,
                 bookId: null,
                 language: null,
                 languageSpaces: null,
@@ -330,6 +354,7 @@
 
                 this.bookName = data.bookName;
                 this.chapterId = data.chapterId;
+                this.translateStory(false);
                 this.wordCount = data.wordCount;
                 this.chapterName = data.chapterName;
                 this.bookId = data.bookId;
@@ -341,6 +366,7 @@
                 window.addEventListener('resize', this.updateToolbarPosition);
                 window.addEventListener('resize', this.vocabularySidebarTest);
                 window.addEventListener('scroll', this.updateToolbarPosition);
+                window.addEventListener('scroll', this.queueReadingPosition, true);
                 document.getElementById('fullscreen-box').addEventListener('fullscreenchange', this.updateFullscreen);
                 for (let i = 0; i < this.chapters.length; i++) {
                     if (this.chapters[i].id == this.chapterId && i < this.chapters.length - 1) {
@@ -352,6 +378,22 @@
                 this.$forceUpdate();
                 this.$nextTick(() => {
                     this.updateGlossary();
+                    axios.get('/reading-position/' + this.chapterId).then(response => {
+                        this.positionHash = response.data.source_hash;
+                        this.$nextTick(() => {
+                            const reader = document.getElementById('reader-content');
+                            if (reader) reader.scrollTop = response.data.scroll_y;
+                            else window.scrollTo(0, response.data.scroll_y);
+                            this.positionRestored = true;
+                            this.heartbeatTab = crypto.randomUUID();
+                            this.sendReadingHeartbeat();
+                            this.heartbeatTimer = setInterval(this.sendReadingHeartbeat, 15000);
+                            window.addEventListener('pointerdown', this.markReaderActivity);
+                            window.addEventListener('keydown', this.markReaderActivity);
+                            window.addEventListener('scroll', this.markReaderActivity, true);
+                            document.addEventListener('visibilitychange', this.sendReadingHeartbeat);
+                        });
+                    }).catch(() => { this.positionError = 'Không tải được vị trí đọc. Tải lại để thử lại.'; });
                 });
                 this.updateToolbarPosition();
                 this.vocabularySidebarTest();
@@ -359,28 +401,83 @@
             });
         },
         beforeDestroy() {
+            this.$root.$emit('reader-focus', false);
             window.removeEventListener('resize', this.updateToolbarPosition);
             window.removeEventListener('resize', this.vocabularySidebarTest);
+            clearInterval(this.heartbeatTimer);
+            window.removeEventListener('pointerdown', this.markReaderActivity);
+            window.removeEventListener('keydown', this.markReaderActivity);
+            window.removeEventListener('scroll', this.markReaderActivity, true);
+            document.removeEventListener('visibilitychange', this.sendReadingHeartbeat);
+            this.saveReadingPosition();
+            clearTimeout(this.positionTimer);
+            window.removeEventListener('scroll', this.queueReadingPosition, true);
+            this.translationGeneration++;
+            clearTimeout(this.translationTimer);
             window.removeEventListener('scroll', this.updateToolbarPosition);
         },
         // this runs after the initial data
         // was downloaded with axios
         methods: {
+            markReaderActivity() { this.lastReaderActivity = Date.now(); },
+            sendReadingHeartbeat() {
+                if (!this.positionHash || !this.heartbeatTab || !navigator.onLine) return;
+                const visible = document.visibilityState === 'visible';
+                const active = !this.finished && !this.saving && visible && document.hasFocus() && Date.now() - this.lastReaderActivity < 60000;
+                axios.post('/reading-heartbeat/' + this.chapterId, {tab_id:this.heartbeatTab, source_hash:this.positionHash, visible, active}).catch(e => {
+                    if ([401,419,409].includes(e.response?.status)) clearInterval(this.heartbeatTimer);
+                });
+            },
+            queueReadingPosition() {
+                clearTimeout(this.positionTimer);
+                this.positionTimer = setTimeout(this.saveReadingPosition, 750);
+            },
+            saveReadingPosition() {
+                if (!this.positionRestored || !this.positionHash) return;
+                axios.post('/reading-position/' + this.chapterId, {source_hash: this.positionHash, scroll_y: Math.round(document.getElementById('reader-content')?.scrollTop ?? window.scrollY)}).then(() => {
+                    this.positionError = '';
+                }).catch(() => { this.positionError = 'Không lưu được vị trí đọc. Kiểm tra kết nối và thử cuộn lại.'; });
+            },
+            translateStory(allowExternal = false, attempt = 0) {
+                if (attempt === 0) { this.translationGeneration++; clearTimeout(this.translationTimer); }
+                const generation = this.translationGeneration;
+                this.translationPending = false;
+                this.translationLoading = true; this.translationError = '';
+                const payload = {chapterId: this.chapterId, target: this.translationTarget}; if (allowExternal) payload.allow_external = true;
+                axios.post('/learning/translate-chapter', payload).then(r => {
+                    if (generation !== this.translationGeneration) return;
+                    if (['queued', 'processing'].includes(r.data.status)) {
+                        if (attempt >= 30) throw new Error('Dịch vẫn đang xử lý. Hãy thử lại sau.');
+                        this.translationPending = true;
+                        const chapter = this.chapterId, target = this.translationTarget;
+                        clearTimeout(this.translationTimer);
+                        this.translationTimer = setTimeout(() => {
+                            if (this.chapterId === chapter && this.translationTarget === target) this.translateStory(allowExternal, attempt + 1);
+                        }, Math.min(15000, 2000 + attempt * 1000));
+                        return;
+                    }
+                    if (['failed', 'unavailable'].includes(r.data.status)) throw new Error(r.data.message);
+                    this.translatedStory = r.data.translation; this.translationProvider = r.data.provider; this.translationReviewStatus = r.data.review_status; this.translationConsent = false;
+                }).catch(e => {
+                    if (generation !== this.translationGeneration) return;
+                    this.translationPending = false;
+                    this.translationConsent = !!(e.response && e.response.data.requiresConsent);
+                    if (!this.translationConsent) this.translationError = e.response?.data?.message || e.message || 'Không kết nối được dịch vụ dịch. Thử lại sau.';
+                }).finally(() => {if (generation === this.translationGeneration && !this.translationPending) this.translationLoading = false;});
+            },
             vocabularySidebarTest() {
                 this.vocabularySidebarFits = window.innerWidth >= 960;
             },
             fullscreen() {
-                if (document.fullscreenEnabled) {
-                    document.getElementById('fullscreen-box').requestFullscreen();
-                    this.fullscreenMode = true;
-                }
+                this.fullscreenMode = true;
+                this.$root.$emit('reader-focus', true);
             },
             exitFullscreen() {
-                document.exitFullscreen();
                 this.fullscreenMode = false;
+                this.$root.$emit('reader-focus', false);
             },
-            updateFullscreen: function() {
-                this.fullscreenMode = document.fullscreenElement !== null;
+            updateFullscreen() {
+                // Focus is independent of browser fullscreen availability.
             },
             updateToolbarPosition: function(event) {
                 this.toolbarTop = 28 - document.documentElement.scrollTop;
@@ -402,6 +499,7 @@
                 this.$refs.textReaderSettings.changeSetting('plainTextMode', this.settings.plainTextMode, true);
             },
             openDialog(dialog) {
+                this.$root.$emit('reader-overlay-open');
                 if (document.fullscreenElement !== null) {
                     this.exitFullscreen();
                 }

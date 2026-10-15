@@ -1,0 +1,62 @@
+name: Release candidate checks
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: disposable-ci-password
+          MYSQL_DATABASE: holatales_unit_20261014
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pdisposable-ci-password"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: holatales_unit_20261014
+      DB_USERNAME: root
+      DB_PASSWORD: disposable-ci-password
+      BROADCAST_DRIVER: log
+      TRANSLATION_BACKGROUND: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, xml, curl, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env
+      - run: php artisan key:generate
+      - run: composer check-platform-reqs
+      - run: php artisan test
+      - run: vendor/bin/pint --test
+      - run: composer audit --locked
+      - run: npm ci
+      - run: npm run production
+      - run: python -m pip install bottle==0.13.4
+      - run: python -m unittest discover -s tools/tests -v
+      - name: Frontend security gate
+        run: npm audit --json > npm-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-audit
+          path: npm-audit.json

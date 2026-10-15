@@ -10,6 +10,6 @@ class GoalAchievement extends Model
     use HasFactory;
 
     protected $fillable = [
-        'achieved_quantity'
+        'achieved_quantity',
     ];
 }

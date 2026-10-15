@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8"><meta name="interface-locale" content="{{ app()->getLocale() }}">
     <link href="/css/vuetify.min.css" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="manifest" href="/manifest.json"> 
@@ -15,7 +15,12 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>LinguaCafe</title>
+    <title>HolaTales</title>
+    <meta name="learning-source" content="{{ auth()->user()?->selected_language }}">
+    <meta name="translation-target" content="{{ auth()->user()?->translation_language ?? 'en' }}">
+    <meta name="translation-languages" content="{{ json_encode(config('learning.targets')) }}">
+    <meta name="reverb-key" content="{{ config('broadcasting.connections.pusher.key') }}">
+    <meta name="reverb-port" content="{{ config('reverb.client_port', 6001) }}">
 
     <script src="{{ mix('js/app.js') }}" defer></script>
     <script src="/js/dmak/raphael.js"></script>
@@ -31,6 +36,7 @@
     <style id="dynamic-selected-font"></style>
 
     @yield('header')
+<link rel="stylesheet" href="/learning-design.css">
 </head>
 <body><!--
 --><div id="app"><!--

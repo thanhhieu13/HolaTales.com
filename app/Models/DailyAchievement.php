@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class DailyAchievement extends Model
 {
     use HasFactory;
+
     protected $table = 'daily_achivements';
 
     protected $fillable = [

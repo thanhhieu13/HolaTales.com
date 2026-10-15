@@ -130,7 +130,7 @@
                             hide-details
                             height="100"
                             v-model="translationText"
-                            @keyup="inputChanged('translation')"
+                            @input="inputChanged('translation')"
                             @keydown.stop=";"
                         ></v-textarea>
 
@@ -190,7 +190,7 @@
                                 dense
                                 rounded
                                 v-model="baseWord"
-                                @keyup="inputChanged"
+                                @input="inputChanged"
                                 @keydown.stop=";"
                             ></v-text-field>
                             <v-text-field 
@@ -202,7 +202,7 @@
                                 dense
                                 rounded
                                 :value="word"
-                                @keyup="inputChanged"
+                                @input="inputChanged"
                                 @keydown.stop=";"
                             ></v-text-field>
                         </div>
@@ -217,7 +217,7 @@
                                 dense
                                 rounded
                                 v-model="baseWordReading"
-                                @keyup="inputChanged"
+                                @input="inputChanged"
                                 @keydown.stop=";"
                             ></v-text-field>
                             <v-text-field 
@@ -228,7 +228,7 @@
                                 dense
                                 rounded
                                 v-model="reading"
-                                @keyup="inputChanged"
+                                @input="inputChanged"
                                 @keydown.stop=";"
                             ></v-text-field>
                         </div>
@@ -245,7 +245,7 @@
                             hide-details
                             height="100"
                             v-model="reading"
-                            @keyup="inputChanged"
+                            @input="inputChanged"
                             @keydown.stop=";"
                         ></v-textarea>
                     </v-card-text>
@@ -316,6 +316,7 @@
             width: state => state.vocabularyBox.width,
             height: state => state.vocabularyBox.height,
         }),
+        watch: { _translationText(value) { this.translationText = value; } },
         data: function() {
             return {
                 // data for word

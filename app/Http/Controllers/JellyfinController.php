@@ -8,11 +8,13 @@ class JellyfinController extends Controller
 {
     private $jellyfinService;
 
-    function __construct(JellyfinService $jellyfinService) {
+    public function __construct(JellyfinService $jellyfinService)
+    {
         $this->jellyfinService = $jellyfinService;
     }
 
-    public function getJellyfinCurrentlyPlayedSubtitles () {
+    public function getJellyfinCurrentlyPlayedSubtitles()
+    {
         try {
             $subtitles = $this->jellyfinService->getJellyfinCurrentlyPlayedSubtitles();
         } catch (\Exception $e) {

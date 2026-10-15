@@ -1,9 +1,9 @@
 <?php
 
-use App\Models\User;
 use App\Models\Setting;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -63,10 +63,10 @@ return new class extends Migration
 
     public function up(): void
     {
-        DB::transaction(function() {
+        DB::transaction(function () {
             $users = User::all();
-            
-            foreach($users as $user) {
+
+            foreach ($users as $user) {
                 // format previous settings into a single json object
                 $settings = Setting::query()
                     ->where('user_id', $user->id)
@@ -77,25 +77,25 @@ return new class extends Migration
                     continue;
                 }
 
-                $lightThemeSettings = $settings->filter(function($value, $key) {
+                $lightThemeSettings = $settings->filter(function ($value, $key) {
                     return str_contains($key, 'lightTheme-');
-                })->mapWithKeys(function($value, $key) {
+                })->mapWithKeys(function ($value, $key) {
                     return [str_replace('lightTheme-', '', $key) => json_decode($value)];
                 });
 
-                $darkThemeSettings = $settings->filter(function($value, $key) {
+                $darkThemeSettings = $settings->filter(function ($value, $key) {
                     return str_contains($key, 'darkTheme-');
-                })->mapWithKeys(function($value, $key) {
+                })->mapWithKeys(function ($value, $key) {
                     return [str_replace('darkTheme-', '', $key) => json_decode($value)];
                 });
 
-                $newSetting = new Setting();
+                $newSetting = new Setting;
                 $newSetting->user_id = $user->id;
                 $newSetting->name = 'vuetifyThemes';
                 $newSetting->value = json_encode([
-                        'light' => $lightThemeSettings,
-                        'dark' => $darkThemeSettings
-                    ]);
+                    'light' => $lightThemeSettings,
+                    'dark' => $darkThemeSettings,
+                ]);
                 $newSetting->save();
 
                 // delete old setting records

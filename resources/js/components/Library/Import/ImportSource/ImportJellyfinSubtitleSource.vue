@@ -13,7 +13,7 @@
             v-if="text.length"
             id="selected-jellyfin-subtitle"
             class="rounded-xl pa-6 mt-2"
-            v-html="text"
+            v-text="text"
         ></div>
     </div>
 </template>

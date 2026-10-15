@@ -26,10 +26,11 @@
             </v-card-title>
 
             <v-card-text class="pt-4 pb-6">
+                <p>Mới đến HolaTales? <a href="/register">Tạo tài khoản miễn phí</a> · <a href="/">Đọc thử</a> · <a href="/forgot-password">Quên mật khẩu?</a></p>
                 <v-form v-model="isFormValid" ref="loginForm">
                     <!-- First user information alerts -->
                     <v-alert
-                        v-if="$props.userCount == 0 && !firstUserAdded"
+                        v-if="false"
                         class="rounded-lg mb-8"
                         color="primary"
                         type="info" 
@@ -173,7 +174,7 @@
                     remember: true
                 }).then((response) => {
                     if(response.status === 200) {
-                        window.location.href = "/";
+                        window.location.href = "/learn";
                     } else {
                         this.error = 'Invalid email or password';
                         this.loading = false;
@@ -184,7 +185,7 @@
                 });
             },
             updateTheme() {
-                window.location.href = "/";
+                window.location.href = "/learn";
             },
         }
     }

@@ -24,13 +24,16 @@ class ImportRequest extends FormRequest
     public function rules()
     {
         return [
-            'importType' => 'required|string',
-            'eBookChapterSortMethod' => 'required|string',
-            'textProcessingMethod' => 'required|string',
-            'bookId' => 'required|numeric|gte:-1',
-            'bookName' => 'nullable|string',
-            'chapterName' => 'required|string',
-            'maximumCharactersPerChapter' => 'required|numeric|gte:200|lte:20000',
+            'importFile' => 'required_if:importType,e-book|file|extensions:epub|max:20480',
+            'importText' => 'required_if:importType,plain-text,text-file,youtube,website|string|max:250000',
+            'importSubtitles' => 'required_if:importType,subtitle-file,jellyfin-subtitle|json|max:2000000',
+            'importType' => 'required|in:e-book,jellyfin-subtitle,subtitle-file,plain-text,text-file,youtube,website',
+            'eBookChapterSortMethod' => 'required|in:default,spine',
+            'textProcessingMethod' => 'required|in:detailed',
+            'bookId' => 'required|integer|gte:-1',
+            'bookName' => 'required_if:bookId,-1|nullable|string|max:128',
+            'chapterName' => 'required|string|max:128',
+            'maximumCharactersPerChapter' => 'required|integer|gte:200|lte:20000',
         ];
     }
 }

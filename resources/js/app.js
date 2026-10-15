@@ -3,23 +3,13 @@ import VueRouter from 'vue-router';
 import vuetify from './vuetify';
 
 require('./bootstrap');
-window.Vue = require('vue').default;
+window.Vue = Vue;
+const {translate} = require('./i18n.cjs');
+const interfaceLocale = document.querySelector('meta[name="interface-locale"]')?.content || 'vi';
+Vue.prototype.$t = key => translate(key, interfaceLocale);
 var VueCookie = require('vue-cookie');
 window.Vue.use(VueCookie);
 window.Vue.use(VueRouter);
-
-
-// vue showdown
-import VueShowdown from 'vue-showdown'
-
-Vue.use(VueShowdown, {
-    // set default flavor of showdown
-    flavor: 'github',
-    // set default options of showdown (will override the flavor options)
-    options: {
-      emoji: false,
-    },
-  })
 
 
 // layout
@@ -233,6 +223,7 @@ const router = new VueRouter({
     routes: [
         { path: '/dev', component: DevelopmentTools },
         { path: '/', component: Home },
+        { path: '/legacy-home', component: Home },
         { path: '/user-settings', component: UserSettingsLayout },
         { path: '/admin/:page?', component: AdminSettingsLayout },
         { path: '/user-manual/:currentPage?', component: UserManual },
@@ -268,11 +259,9 @@ const store = new Vuex.Store({
 });
 
 Vue.use(store);
-const app = new Vue({
-    router,
-    el: '#app',
-    vuetify,
-    store,
-});
-
-
+const bootstrapElement = document.getElementById('app-bootstrap');
+if (bootstrapElement) {
+    const {safeUiObject} = require('./security/safeUiObject.cjs');
+    const props = safeUiObject(JSON.parse(bootstrapElement.textContent));
+    new Vue({router, vuetify, store, render: h => h(Layout, {props})}).$mount('#app');
+}

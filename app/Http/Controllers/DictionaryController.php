@@ -3,39 +3,38 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Dictionaries\CreateCustomApiDictionaryRequest;
-use App\Models\Dictionary;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Services\DictionaryService;
-use Illuminate\Support\Facades\Auth;
-
-// services
-use Illuminate\Support\Facades\Schema;
-use App\Services\DictionaryImportService;
-
-// request classes
-use App\Http\Requests\Dictionaries\SearchApiRequest;
-use App\Http\Requests\Dictionaries\GetDictionaryRequest;
+use App\Http\Requests\Dictionaries\CreateDeeplDictionaryRequest;
+use App\Http\Requests\Dictionaries\CreateLibreTranslateDictionaryRequest;
+use App\Http\Requests\Dictionaries\CreateMyMemoryDictionaryRequest;
 use App\Http\Requests\Dictionaries\DeleteDictionaryRequest;
-use App\Http\Requests\Dictionaries\UpdateDictionaryRequest;
+// services
+use App\Http\Requests\Dictionaries\GetDictionaryFileInformationRequest;
+use App\Http\Requests\Dictionaries\GetDictionaryRecordCountRequest;
+// request classes
+use App\Http\Requests\Dictionaries\GetDictionaryRequest;
+use App\Http\Requests\Dictionaries\ImportDictionaryCsvFileRequest;
+use App\Http\Requests\Dictionaries\ImportSupportedDictionaryRequest;
+use App\Http\Requests\Dictionaries\SearchApiRequest;
+use App\Http\Requests\Dictionaries\SearchDefinitionsForHoverVocabularyRequest;
 use App\Http\Requests\Dictionaries\SearchDefinitionsRequest;
 use App\Http\Requests\Dictionaries\SearchInflectionsRequest;
-use App\Http\Requests\Dictionaries\CreateDeeplDictionaryRequest;
 use App\Http\Requests\Dictionaries\TestDictionaryCsvFileRequest;
-use App\Http\Requests\Dictionaries\ImportDictionaryCsvFileRequest;
-use App\Http\Requests\Dictionaries\CreateMyMemoryDictionaryRequest;
-use App\Http\Requests\Dictionaries\GetDictionaryRecordCountRequest;
-use App\Http\Requests\Dictionaries\ImportSupportedDictionaryRequest;
-use App\Http\Requests\Dictionaries\GetDictionaryFileInformationRequest;
-use App\Http\Requests\Dictionaries\CreateLibreTranslateDictionaryRequest;
-use App\Http\Requests\Dictionaries\SearchDefinitionsForHoverVocabularyRequest;
+use App\Http\Requests\Dictionaries\UpdateDictionaryRequest;
+use App\Services\DictionaryImportService;
+use App\Services\DictionaryService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DictionaryController extends Controller
 {
     private $dictionaryService;
+
     private $dictionaryImportService;
-    
-    public function __construct(DictionaryService $dictionaryService, DictionaryImportService $dictionaryImportService) {
+
+    public function __construct(DictionaryService $dictionaryService, DictionaryImportService $dictionaryImportService)
+    {
         $this->dictionaryService = $dictionaryService;
         $this->dictionaryImportService = $dictionaryImportService;
     }
@@ -43,7 +42,8 @@ class DictionaryController extends Controller
     /*
         Returns a list of dictionaries.
     */
-    public function getDictionaries() {
+    public function getDictionaries()
+    {
 
         try {
             $dictionaries = $this->dictionaryService->getDictionaries();
@@ -54,8 +54,9 @@ class DictionaryController extends Controller
         return response()->json($dictionaries, 200);
     }
 
-    public function getDictionary($dictionaryId, GetDictionaryRequest $request) {
-        
+    public function getDictionary($dictionaryId, GetDictionaryRequest $request)
+    {
+
         try {
             $dictionary = $this->dictionaryService->getDictionary($dictionaryId);
         } catch (\Exception $e) {
@@ -65,7 +66,8 @@ class DictionaryController extends Controller
         return response()->json($dictionary, 200);
     }
 
-    public function updateDictionary(UpdateDictionaryRequest $request) {
+    public function updateDictionary(UpdateDictionaryRequest $request)
+    {
         $dictionaryId = $request->post('id');
 
         $dictionaryData = [];
@@ -89,7 +91,7 @@ class DictionaryController extends Controller
         if (isset($request->color)) {
             $dictionaryData['color'] = $request->post('color');
         }
-        
+
         if (isset($request->enabled)) {
             $dictionaryData['enabled'] = $request->post('enabled');
         }
@@ -103,7 +105,8 @@ class DictionaryController extends Controller
         return response()->json('Dictionary has been updated successfully.', 200);
     }
 
-    public function isAnyApiDictionaryEnabled() {
+    public function isAnyApiDictionaryEnabled()
+    {
         $language = Auth::user()->selected_language;
 
         try {
@@ -111,21 +114,23 @@ class DictionaryController extends Controller
         } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
-        
+
         return response()->json($response, 200);
     }
 
-    public function getDeeplCharacterLimit() {
+    public function getDeeplCharacterLimit()
+    {
         try {
-            $deeplLimit = $this->dictionaryService->getDeeplCharacterLimit();   
+            $deeplLimit = $this->dictionaryService->getDeeplCharacterLimit();
         } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
-        
+
         return response()->json($deeplLimit, 200);
     }
 
-    public function searchDefinitions(SearchDefinitionsRequest $request) {
+    public function searchDefinitions(SearchDefinitionsRequest $request)
+    {
         $language = $request->post('language');
         $term = $request->post('term');
 
@@ -141,7 +146,8 @@ class DictionaryController extends Controller
     /*
         This function returns a list of exact matches from dictionaries for the hover popup vocabulary.
     */
-    public function searchDefinitionsForHoverVocabulary(SearchDefinitionsForHoverVocabularyRequest $request) {
+    public function searchDefinitionsForHoverVocabulary(SearchDefinitionsForHoverVocabularyRequest $request)
+    {
         $language = $request->post('language');
         $term = $request->post('term');
 
@@ -154,7 +160,8 @@ class DictionaryController extends Controller
         return response()->json($searchResult, 200);
     }
 
-    public function searchApiDictionaries(SearchApiRequest $request) {
+    public function searchApiDictionaries(SearchApiRequest $request)
+    {
         $language = $request->post('language');
         $term = $request->post('term');
 
@@ -167,7 +174,8 @@ class DictionaryController extends Controller
         return response()->json($definitions, 200);
     }
 
-    public function searchInflections(SearchInflectionsRequest $request) {
+    public function searchInflections(SearchInflectionsRequest $request)
+    {
         $term = $request->term;
 
         try {
@@ -179,57 +187,61 @@ class DictionaryController extends Controller
         return response()->json($inflections, 200);
     }
 
-    public function createDeeplDictionary(CreateDeeplDictionaryRequest $request) {
+    public function createDeeplDictionary(CreateDeeplDictionaryRequest $request)
+    {
         $sourceLanguage = $request->post('sourceLanguage');
         $targetLanguage = $request->post('targetLanguage');
         $color = $request->post('color');
-        $name  = $request->post('name');
+        $name = $request->post('name');
 
         try {
             $this->dictionaryImportService->createDeeplDictionary($sourceLanguage, $targetLanguage, $color, $name);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
 
         return response()->json('DeepL dictionary has been created successfully.', 200);
     }
 
-    public function createMyMemoryDictionary(CreateMyMemoryDictionaryRequest $request) {
+    public function createMyMemoryDictionary(CreateMyMemoryDictionaryRequest $request)
+    {
         $sourceLanguage = $request->validated('sourceLanguage');
         $targetLanguage = $request->validated('targetLanguage');
         $color = $request->validated('color');
-        $name  = $request->validated('name');
+        $name = $request->validated('name');
 
         try {
             $this->dictionaryImportService->createMyMemoryDictionary($sourceLanguage, $targetLanguage, $color, $name);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
     }
-    
-    public function createLibreTranslateDictionary(CreateLibreTranslateDictionaryRequest $request) {
+
+    public function createLibreTranslateDictionary(CreateLibreTranslateDictionaryRequest $request)
+    {
         $sourceLanguage = $request->validated('sourceLanguage');
         $targetLanguage = $request->validated('targetLanguage');
         $color = $request->validated('color');
-        $name  = $request->validated('name');
+        $name = $request->validated('name');
 
         try {
             $this->dictionaryImportService->createLibreTranslateDictionary($sourceLanguage, $targetLanguage, $color, $name);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
     }
 
-    public function createCustomApiDictionary(CreateCustomApiDictionaryRequest $request) {
+    public function createCustomApiDictionary(CreateCustomApiDictionaryRequest $request)
+    {
         $sourceLanguage = $request->validated('sourceLanguage');
         $targetLanguage = $request->validated('targetLanguage');
         $color = $request->validated('color');
-        $name  = $request->validated('name');
-        $host  = $request->validated('api_host');
+        $name = $request->validated('name');
+        $host = $request->validated('api_host');
 
         try {
             $this->dictionaryImportService->createCustomApiDictionary($sourceLanguage, $targetLanguage, $color, $name, $host);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
     }
@@ -239,7 +251,8 @@ class DictionaryController extends Controller
         This makes it faster to test a file and notice any problems before
         the user actually imports a large file.
     */
-    public function testDictionaryCsvFile(TestDictionaryCsvFileRequest $request) {
+    public function testDictionaryCsvFile(TestDictionaryCsvFileRequest $request)
+    {
         $file = $request->file('dictionary');
         $delimiter = $request->post('delimiter');
         $skipHeader = boolval($request->post('skipHeader') === 'true');
@@ -253,7 +266,8 @@ class DictionaryController extends Controller
         return response()->json($sample, 200);
     }
 
-    public function importDictionaryCsvFile(ImportDictionaryCsvFileRequest $request) {
+    public function importDictionaryCsvFile(ImportDictionaryCsvFileRequest $request)
+    {
         set_time_limit(2400);
         $file = $request->file('dictionary');
         $skipHeader = boolval($request->post('skipHeader') === 'true');
@@ -266,44 +280,46 @@ class DictionaryController extends Controller
 
         try {
             $this->dictionaryImportService->importDictionaryCsvFile(
-                $file, 
-                $skipHeader, 
-                $delimiter, 
-                $dictionaryName, 
-                $databaseTableName, 
-                $sourceLanguage, 
-                $targetLanguage, 
+                $file,
+                $skipHeader,
+                $delimiter,
+                $dictionaryName,
+                $databaseTableName,
+                $sourceLanguage,
+                $targetLanguage,
                 $color
             );
 
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
 
         return response()->json('Dictionary has been imported successfully.', 200);
     }
 
-    public function getDictionaryFileInformation(GetDictionaryFileInformationRequest $request) {
+    public function getDictionaryFileInformation(GetDictionaryFileInformationRequest $request)
+    {
         $dictionaryFile = $request->file('dictionaryFile');
         $dictCcLanguageCodes = config('linguacafe.languages.dict_cc_language_codes');
         $databaseLanguageCodes = config('linguacafe.languages.database_name_language_codes');
         $supportedSourceLanguages = config('linguacafe.languages.supported_languages');
-        
+
         try {
             $dictionariesFound = $this->dictionaryImportService->getDictionaryFileInformation(
-                $dictionaryFile, 
-                $supportedSourceLanguages, 
-                $dictCcLanguageCodes, 
+                $dictionaryFile,
+                $supportedSourceLanguages,
+                $dictCcLanguageCodes,
                 $databaseLanguageCodes
             );
         } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
-        
+
         return json_encode($dictionariesFound);
     }
 
-    public function importSupportedDictionary(ImportSupportedDictionaryRequest $request) {
+    public function importSupportedDictionary(ImportSupportedDictionaryRequest $request)
+    {
         set_time_limit(2400);
         $userUuid = Auth::user()->uuid;
         $dictionaryName = $request->post('dictionaryName');
@@ -311,54 +327,54 @@ class DictionaryController extends Controller
         $dictionarySourceLanguage = $request->post('dictionarySourceLanguage');
         $dictionaryTargetLanguage = $request->post('dictionaryTargetLanguage');
         $dictionaryDatabaseName = $request->post('dictionaryDatabaseName');
-        
+
         try {
             $this->dictionaryImportService->importSupportedDictionary(
-                $userUuid, 
-                $dictionaryName, 
-                $dictionaryFileName, 
-                $dictionarySourceLanguage, 
-                $dictionaryTargetLanguage, 
+                $userUuid,
+                $dictionaryName,
+                $dictionaryFileName,
+                $dictionarySourceLanguage,
+                $dictionaryTargetLanguage,
                 $dictionaryDatabaseName
             );
         } catch (\Throwable $t) {
             if ($dictionaryName !== 'JMDict') {
-                DB
-                    ::table('dictionaries')
+                DB::table('dictionaries')
                     ->where('database_table_name', $dictionaryDatabaseName)
                     ->delete();
 
                 Schema::dropIfExists($dictionaryDatabaseName);
             }
-            
+
             abort(500, $t->getMessage());
         } catch (\Exception $e) {
             if ($dictionaryName !== 'JMDict') {
-                DB
-                    ::table('dictionaries')
+                DB::table('dictionaries')
                     ->where('database_table_name', $dictionaryDatabaseName)
                     ->delete();
 
                 Schema::dropIfExists($dictionaryDatabaseName);
             }
-            
+
             abort(500, $e->getMessage());
         }
 
         return response()->json('Dictionary has been imported successfully.', 200);
     }
 
-    public function getDictionaryRecordCount($dictionaryTableName, GetDictionaryRecordCountRequest $request) {
+    public function getDictionaryRecordCount($dictionaryTableName, GetDictionaryRecordCountRequest $request)
+    {
         try {
             $recordCount = $this->dictionaryService->getDictionaryRecordCount($dictionaryTableName);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
 
         return response()->json($recordCount, 200);
     }
 
-    public function deleteDictionary($dictionaryId, DeleteDictionaryRequest $request) {
+    public function deleteDictionary($dictionaryId, DeleteDictionaryRequest $request)
+    {
         try {
             $this->dictionaryService->deleteDictionary($dictionaryId);
         } catch (\Exception $e) {

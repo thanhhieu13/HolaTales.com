@@ -1,7 +1,9 @@
-from bottle import route, request, response, run, BaseRequest, HTTPResponse
+from bottle import route, request, response, run, BaseRequest, HTTPResponse, abort
 BaseRequest.MEMFILE_MAX = 1024 * 1024 * 100
 from spacy.language import Language
 import sys
+import os
+from pathlib import Path
 import json
 import pykakasi
 import spacy
@@ -11,6 +13,7 @@ import ebooklib
 import html
 import pinyin
 from ebooklib import epub
+from epub_security import validate_epub_archive
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled
 from urllib import parse
@@ -22,6 +25,16 @@ import importlib
 import shutil
 import subprocess
 from newspaper import Article
+
+def safe_import_path(value):
+    root = Path(os.environ.get('TOKENIZER_IMPORT_ROOT', str(Path.cwd() / 'storage' / 'app' / 'temp'))).resolve()
+    if not isinstance(value, str):
+        abort(400, 'Invalid import file')
+    path = Path(value).resolve()
+    if not path.is_relative_to(root) or not path.is_file() or path.stat().st_size > 20 * 1024 * 1024:
+        abort(400, 'Import file is outside the allowed directory or too large')
+    return str(path)
+
 
 # create emtpy sapce models
 multi_nlp = None
@@ -348,6 +361,10 @@ def loadBook(file, sortMethod):
     # rp and rt tags are used in adding prononciation over words, we need to remove the content of the tags
     cleaner = lxml_html_clean.Cleaner(allow_tags=[''], remove_unknown_tags=False, kill_tags = ['rp','rt'], page_structure=False)
     content = ''
+    try:
+        validate_epub_archive(file)
+    except ValueError:
+        abort(422, 'Invalid or unsafe EPUB archive')
     book = epub.read_epub(file)
     items = list(book.get_items())
 
@@ -360,11 +377,16 @@ def loadBook(file, sortMethod):
         sortedItems = items
 
     for item in sortedItems:
+        if item is None:
+            abort(422, 'Invalid EPUB spine')
         if item.get_type() == ebooklib.ITEM_DOCUMENT:
             # clean_html cannot be passed bytes but it cannot be passed a str
             # with explicit encoding either. So you must convert it to a string
             # and then use RegEx to remove the encoding declaration
-            content_str = item.get_content().decode()
+            try:
+                content_str = item.get_content().decode('utf-8')
+            except UnicodeDecodeError:
+                abort(422, 'EPUB chapter must contain valid UTF-8 text')
             content_str = re.sub(r'<\?xml[^>]+\?>', '', content_str, count=1)
             epubPage = cleaner.clean_html(content_str)
             # needed to removed extra div created by cleaner...
@@ -402,7 +424,6 @@ def subtitleTokenizer():
 
     currentChunkSentenceIndex = 0
     for subtitleIndex, subtitle in enumerate(subtitles):
-        print(subtitles)
         # tokenize text
         text = subtitles[subtitleIndex]['text'].replace('\r\n', ' NEWLINE ')
         text = text.replace('\n', ' NEWLINE ')
@@ -433,7 +454,7 @@ def importBook():
     response.headers['Content-Type'] = 'application/json'
     chunkSize = request.json.get('chunkSize')
     textProcessingMethod = request.json.get('textProcessingMethod')
-    importFile = request.json.get('importFile')
+    importFile = safe_import_path(request.json.get('importFile'))
     language = request.json.get('language')
     chapterSortMethod = request.json.get('chapterSortMethod')
     
@@ -514,7 +535,6 @@ def importSubtitles():
         # add subtitle to raw chunk
         chunks[-1].append(subtitle)
 
-    print(chunks)
     return json.dumps(chunks)
 
 @route('/tokenizer/get-youtube-subtitle-list', method='POST')
@@ -545,7 +565,7 @@ def getYoutubeSubtitles():
 @route('/tokenizer/get-subtitle-file-content', method='POST')
 def getYoutubeSubtitles():
     response.headers['Content-Type'] = 'application/json'
-    fileName = request.json.get('fileName')
+    fileName = safe_import_path(request.json.get('fileName'))
     subtitleContent = list()
     
     subtitles = parser.parse(fileName)
@@ -568,9 +588,11 @@ def getYoutubeSubtitles():
 
 @route('/tokenizer/get-website-text', method='POST')
 def getWebsiteText():
-    url = request.json.get('url')
-    article = Article(url)
-    article.download()
+    source_html = request.json.get('html')
+    if not isinstance(source_html, str) or len(source_html.encode('utf-8')) > 2000000:
+        return HTTPResponse(status=422, body='Invalid HTML input')
+    article = Article('https://example.invalid/')
+    article.set_html(source_html)
     article.parse()
 
     return json.dumps(article.text);
@@ -664,4 +686,4 @@ def model_remove():
             continue
     return HTTPResponse(status=500, body="Error: Model directory could not be removed in 5 retries")
 
-run(host='0.0.0.0', port=8678, reloader=False, debug=False)
+run(host=os.environ.get('TOKENIZER_HOST', '127.0.0.1'), port=8678, reloader=False, debug=False)

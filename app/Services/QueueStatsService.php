@@ -2,20 +2,17 @@
 
 namespace App\Services;
 
-use App\Models\Chapter;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use App\Models\ChapterProcessingQueueStat;
+use Illuminate\Support\Carbon;
 
-class QueueStatsService {
-
-    public function __construct() {
-    }
+class QueueStatsService
+{
+    public function __construct() {}
 
     public function insertChapterProcessedStat($chapter, $status, $dispatchedAt, $startedAt): void
     {
         // add job to stats
-        $chapterProcessingQueueStat = new ChapterProcessingQueueStat();
+        $chapterProcessingQueueStat = new ChapterProcessingQueueStat;
         $chapterProcessingQueueStat->user_id = $chapter->user_id;
         $chapterProcessingQueueStat->chapter_id = $chapter->id;
         $chapterProcessingQueueStat->book_id = $chapter->book_id;

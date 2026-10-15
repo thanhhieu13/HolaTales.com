@@ -180,6 +180,19 @@ return [
     */
 
     'defaults' => [
+        'translations' => [
+            'connection' => 'translations',
+            'queue' => ['translations'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 2,
+            'timeout' => 240,
+            'nice' => 0,
+        ],
+
         'supervisor-1' => [
             'connection' => 'redis',
             'queue' => ['default'],
@@ -197,6 +210,7 @@ return [
 
     'environments' => [
         'production' => [
+            'translations' => ['maxProcesses' => 1],
             'supervisor-1' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
@@ -205,6 +219,7 @@ return [
         ],
 
         'local' => [
+            'translations' => ['maxProcesses' => 1],
             'supervisor-1' => [
                 'maxProcesses' => 3,
             ],

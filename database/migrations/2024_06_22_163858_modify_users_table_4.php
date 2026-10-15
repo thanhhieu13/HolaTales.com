@@ -1,11 +1,11 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use App\Models\User;
 
 class ModifyUsersTable4 extends Migration
 {
@@ -39,6 +39,6 @@ class ModifyUsersTable4 extends Migration
      */
     public function down()
     {
-        DB::statement("ALTER TABLE users DROP COLUMN uuid");
+        DB::statement('ALTER TABLE users DROP COLUMN uuid');
     }
 }

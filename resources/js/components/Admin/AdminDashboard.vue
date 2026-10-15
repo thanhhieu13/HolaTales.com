@@ -24,7 +24,7 @@
                     border="left"
                     dark
                 >
-                    A backup of your database has been successfully created. Your backup can be found inside the "/storage/backup/{{ backupCreationRequest.fileName }}" directory.
+                    A backup has been created in the configured backup storage.
                 </v-alert>
 
                 <!-- Error message -->
@@ -81,7 +81,7 @@
                 this.backupCreationRequest.fileName = '';
                 this.backupCreationRequest.loading = true;
 
-                axios.get('/backups/create').then((response) => {
+                axios.post('/backups/create').then((response) => {
                     
                     if (response.data.exitCode === 0) {
                         this.backupCreationRequest.loading = false;

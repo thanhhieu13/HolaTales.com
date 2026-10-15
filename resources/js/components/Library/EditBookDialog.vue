@@ -33,7 +33,7 @@
                         placeholder="Name"
                         :rules="[rules.name]"
                         maxlength="128"
-                        @keyup="validateForm"
+                        @input="validateForm"
                     ></v-text-field>
                     
                     

@@ -12,11 +12,12 @@ export default {
         textStylingSettings: null,
         echo: new Echo({
             broadcaster: 'pusher',
-            key: 'wjp2pou6ebgibtwccqsj',
+            key: document.querySelector('meta[name="reverb-key"]')?.content || 'local',
             cluster: 'mt1',
-            forceTLS: false,
+            forceTLS: window.location.protocol === 'https:',
             wsHost: window.location.hostname,
-            wsPort: 6001,
+            wsPort: Number(document.querySelector('meta[name="reverb-port"]')?.content || 6001),
+            wssPort: Number(document.querySelector('meta[name="reverb-port"]')?.content || 443),
             enabledTransports: ['ws', 'wss'],
         })
     }),

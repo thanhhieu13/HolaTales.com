@@ -14,7 +14,7 @@ class ModifyUsersTable3 extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('selected_language')->default('spanish')->change();;
+            $table->string('selected_language')->default('spanish')->change();
         });
     }
 

@@ -24,7 +24,7 @@ class GetKanjiDetailsRequest extends FormRequest
     public function rules()
     {
         return [
-            'kanji' => 'required|string'
+            'kanji' => 'required|string',
         ];
     }
 }

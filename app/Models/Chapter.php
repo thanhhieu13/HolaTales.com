@@ -4,9 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Phrase;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class Chapter extends Model
 {
@@ -22,34 +19,38 @@ class Chapter extends Model
         'raw_text',
     ];
 
-    function getProcessedText() {
+    public function getProcessedText()
+    {
         return json_decode(gzuncompress($this->processed_text));
     }
 
-    function setProcessedText($processedText) {
+    public function setProcessedText($processedText)
+    {
         $this->processed_text = gzcompress(json_encode($processedText), 1);
     }
 
-    function getWordCounts($words) {
+    public function getWordCounts($words)
+    {
         $uniqueWordIds = json_decode($this->unique_word_ids);
-        $wordCounts = new \stdClass();
+        $uniqueWordIds = array_values(array_filter($uniqueWordIds, fn ($id) => isset($words[$id]) && ! in_array($words[$id]['word'], config('linguacafe.words_to_skip'), true)));
+        $wordCounts = new \stdClass;
         $wordCounts->total = $this->word_count;
         $wordCounts->unique = count($uniqueWordIds);
         $wordCounts->known = 0;
         $wordCounts->highlighted = 0;
         $wordCounts->new = 0;
-        
-        foreach($uniqueWordIds as $wordId) {
+
+        foreach ($uniqueWordIds as $wordId) {
             if ($words[$wordId]['stage'] < 0) {
-                $wordCounts->highlighted ++;
+                $wordCounts->highlighted++;
             }
 
             if ($words[$wordId]['stage'] == 0) {
-                $wordCounts->known ++;
+                $wordCounts->known++;
             }
 
             if ($words[$wordId]['stage'] == 2) {
-                $wordCounts->new ++;
+                $wordCounts->new++;
             }
         }
 

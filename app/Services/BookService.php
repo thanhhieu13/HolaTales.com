@@ -2,22 +2,20 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
+use App\Enums\ChapterProcessingStatusEnum;
 use App\Models\Book;
-
 use App\Models\Chapter;
 use App\Models\EncounteredWord;
-use App\Enums\ChapterProcessingStatusEnum;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 
-class BookService {
-    
-    public function __construct() {
-    }
-    
-    public function getBooks($userId, $language) {
-        $books = Book
-            ::where('user_id', $userId)
+class BookService
+{
+    public function __construct() {}
+
+    public function getBooks($userId, $language)
+    {
+        $books = Book::where('user_id', $userId)
             ->where('language', $language)
             ->orderBy('updated_at', 'DESC')
             ->get();
@@ -30,20 +28,18 @@ class BookService {
         return $books;
     }
 
-
-    public function getBookWordCounts($userId, $bookId) {
-        $book = Book
-            ::where('user_id', $userId)
+    public function getBookWordCounts($userId, $bookId)
+    {
+        $book = Book::where('user_id', $userId)
             ->where('id', $bookId)
             ->first();
-                
-        if (!$book) {
-            throw new \Exception('Book does not exist, or it belongs to a different user.');
+
+        if (! $book) {
+            abort(404, 'Resource not found.');
         }
-        
+
         // get words for calculating word counts
-        $words = EncounteredWord
-            ::select(['id', 'word', 'stage'])
+        $words = EncounteredWord::select(['id', 'word', 'stage'])
             ->where('user_id', $userId)
             ->where('language', $book->language)
             ->get()
@@ -59,10 +55,10 @@ class BookService {
         other word counts are being calculated in real time.
     */
 
-    public function updateBookWordCount($userId, $bookId) {
+    public function updateBookWordCount($userId, $bookId)
+    {
         // calculate book word count
-        $bookWordCount = Chapter
-            ::where('user_id', $userId)
+        $bookWordCount = Chapter::where('user_id', $userId)
             ->where('book_id', $bookId)
             ->where('processing_status', ChapterProcessingStatusEnum::PROCESSED->value)
             ->sum('word_count');
@@ -70,15 +66,15 @@ class BookService {
         $bookWordCount = intval($bookWordCount);
 
         // update book word count
-        Book
-            ::where('user_id', $userId)
+        Book::where('user_id', $userId)
             ->where('id', $bookId)
             ->update(['word_count' => $bookWordCount]);
     }
 
-    public function createBook($userId, $selectedLanguage, $bookName, $bookCoverFile) {
+    public function createBook($userId, $selectedLanguage, $bookName, $bookCoverFile)
+    {
         // create book model
-        $book = new Book();
+        $book = new Book;
         $book->user_id = $userId;
         $book->cover_image = null;
         $book->language = $selectedLanguage;
@@ -86,46 +82,47 @@ class BookService {
 
         // save new book
         $book->save();
-        
+
         // update image
-        if (!is_null($bookCoverFile)) {
+        if (! is_null($bookCoverFile)) {
             $this->saveBookImage($book, $bookCoverFile);
         }
 
         return true;
     }
 
-    public function updateBook($userId, $bookId, $bookName, $bookCoverFile) {
-        $book = Book
-            ::where('user_id', $userId)
+    public function updateBook($userId, $bookId, $bookName, $bookCoverFile)
+    {
+        $book = Book::where('user_id', $userId)
             ->where('id', $bookId)
             ->first();
 
-        if (!$book) {
-            throw new \Exception('Book does not exist, or it belongs to a different user.');
+        if (! $book) {
+            abort(404, 'Resource not found.');
         }
 
         // update and save book
         $book->name = $bookName;
         $book->save();
-        
+
         // update image
-        if (!is_null($bookCoverFile)) {
+        if (! is_null($bookCoverFile)) {
             $this->saveBookImage($book, $bookCoverFile);
         }
 
         return true;
     }
 
-    private function saveBookImage($book, $bookCoverFile) {
+    private function saveBookImage($book, $bookCoverFile)
+    {
         // delete old image
         if ($book->cover_image !== '' && $book->cover_image !== null) {
-            Storage::delete('/images/book_images/' . $book->cover_image);
+            Storage::delete('/images/book_images/'.$book->cover_image);
         }
 
         // save image on server
         $timestamp = implode('_', explode(' ', Carbon::now()->toDateTimeString()));
-        $fileName = $book->id . '_' . $timestamp . '.' . ($bookCoverFile->getClientOriginalExtension());
+        $fileName = $book->id.'_'.$timestamp.'.'.($bookCoverFile->getClientOriginalExtension());
         $bookCoverFile->storeAs('/images/book_images/', $fileName);
 
         // save image in database
@@ -133,23 +130,22 @@ class BookService {
         $book->save();
     }
 
-    public function deleteBook($userId, $bookId) {
-        $book = Book
-            ::where('user_id', $userId)
+    public function deleteBook($userId, $bookId)
+    {
+        $book = Book::where('user_id', $userId)
             ->where('id', $bookId)
             ->first();
 
-        if (!$book) {
-            throw new \Exception('Book does not exist, or it belongs to a different user.');
+        if (! $book) {
+            abort(404, 'Resource not found.');
         }
 
-        Chapter
-            ::where('user_id', $userId)
+        Chapter::where('user_id', $userId)
             ->where('book_id', $bookId)
             ->delete();
-            
+
         if ($book->cover_image !== '' && $book->cover_image !== null) {
-            Storage::delete('/images/book_images/' . $book->cover_image);
+            Storage::delete('/images/book_images/'.$book->cover_image);
         }
 
         $book->delete();

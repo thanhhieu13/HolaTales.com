@@ -2,11 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Support\Arr;
-use Illuminate\Support\Carbon;
 use App\Services\BackupService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 class CreateBackup extends Command
 {
@@ -29,8 +26,8 @@ class CreateBackup extends Command
      */
     public function handle()
     {
-        $exitCode = (new BackupService())->createBackup();
-        
+        $exitCode = (new BackupService)->createBackup();
+
         return $exitCode;
     }
 }

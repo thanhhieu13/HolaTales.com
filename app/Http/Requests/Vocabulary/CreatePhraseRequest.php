@@ -27,7 +27,7 @@ class CreatePhraseRequest extends FormRequest
             'words' => 'required|json',
             'stage' => 'required|numeric|gte:-7|lte:2',
             'reading' => 'nullable|string',
-            'translation' => 'nullable|string'
+            'translation' => 'nullable|string',
         ];
     }
 }

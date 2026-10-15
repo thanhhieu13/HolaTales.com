@@ -1,10 +1,8 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use App\Models\EncounteredWord;
 use App\Models\Lesson;
+use Illuminate\Database\Migrations\Migration;
 
 class ModifyLessonsTable4 extends Migration
 {
@@ -15,19 +13,19 @@ class ModifyLessonsTable4 extends Migration
      */
     public function up()
     {
-        DB::statement("ALTER TABLE lessons ADD COLUMN unique_word_ids TEXT");
-        DB::statement("ALTER TABLE lessons DROP COLUMN unique_word_count");
-        DB::statement("ALTER TABLE lessons DROP COLUMN known_word_count");
-        DB::statement("ALTER TABLE lessons DROP COLUMN highlighted_word_count");
-        DB::statement("ALTER TABLE lessons DROP COLUMN new_word_count");
-        
+        DB::statement('ALTER TABLE lessons ADD COLUMN unique_word_ids TEXT');
+        DB::statement('ALTER TABLE lessons DROP COLUMN unique_word_count');
+        DB::statement('ALTER TABLE lessons DROP COLUMN known_word_count');
+        DB::statement('ALTER TABLE lessons DROP COLUMN highlighted_word_count');
+        DB::statement('ALTER TABLE lessons DROP COLUMN new_word_count');
+
         $chapters = Lesson::all();
         foreach ($chapters as $chapter) {
             $uniqueWords = EncounteredWord::select(['id'])->where('language', $chapter->language)->whereIn('word', json_decode($chapter->unique_words))->get();
             $uniqueWordIds = [];
 
-            foreach($uniqueWords as $word) {
-                if (!in_array($word->id, $uniqueWordIds, true)) {
+            foreach ($uniqueWords as $word) {
+                if (! in_array($word->id, $uniqueWordIds, true)) {
                     array_push($uniqueWordIds, $word->id);
                 }
             }

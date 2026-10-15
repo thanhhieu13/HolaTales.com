@@ -8,5 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class DeeplCache extends Model
 {
     use HasFactory;
+
     protected $table = 'deepl_caches';
 }

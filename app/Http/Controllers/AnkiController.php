@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Auth;
-use App\Services\AnkiApiService;
-
-
-// request classes
 use App\Http\Requests\Anki\AddCardToAnkiRequest;
+use App\Services\AnkiApiService;
+// request classes
+use Illuminate\Support\Facades\Auth;
 
 class AnkiController extends Controller
 {
     private $ankiApiService;
-    
-    public function __construct(AnkiApiService $ankiApiService) {
+
+    public function __construct(AnkiApiService $ankiApiService)
+    {
         $this->ankiApiService = $ankiApiService;
     }
 
-    public function addCardToAnki(AddCardToAnkiRequest $request) {
+    public function addCardToAnki(AddCardToAnkiRequest $request)
+    {
         $language = Auth::user()->selected_language;
         $word = mb_strtolower($request->post('word'));
         $reading = $request->post('reading') ? $request->post('reading') : '';
@@ -29,7 +29,7 @@ class AnkiController extends Controller
         } catch (\Exception $e) {
             abort(500, $e->getMessage());
         }
-        
+
         return response()->json($testResult, 200);
     }
 }

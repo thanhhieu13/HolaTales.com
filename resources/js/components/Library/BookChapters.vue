@@ -206,7 +206,7 @@
 
                     <!-- Chapter importing failed -->
                     <template v-else-if="item.processing_status === 'failed'">
-                        <v-chip small color="error">failed</v-chip>
+                        <v-chip small color="error">failed</v-chip><v-btn small text :disabled="retrying" @click="retryFailed">Retry processing</v-btn>
                     </template>
                 </div>
             </template>
@@ -222,7 +222,7 @@
                 book: null,
                 bookWordCount: null,
                 chapters: [],
-                chaptersLoading: false,
+                chaptersLoading: false, retrying: false, processingPoll: null,
                 randomChapter: 0,
                 errorDialog: {
                     active: false,
@@ -250,6 +250,7 @@
         },
         mounted() {
             this.loadChapters();
+            this.processingPoll = setInterval(() => { if (!this.chaptersLoading && this.chapters.some(c => c.processing_status === 'unprocessed')) this.loadChapters(); }, 5000);
 
             // retrieve word counts
             this.$store.getters['shared/echo'].private('chapter-status-update.' + this.$store.getters['shared/userUuid']).listen('ChapterStateUpdatedEvent', (message) => {
@@ -257,9 +258,14 @@
             });
         },
         beforeDestroy() {
+            clearInterval(this.processingPoll);
             this.$store.getters['shared/echo'].private('chapter-status-update.' + this.$store.getters['shared/userUuid']).stopListening('ChapterStateUpdatedEvent');
         },
         methods: {
+            retryFailed() {
+                this.retrying = true;
+                axios.post('/chapters/retry-failed-chapters/' + this.$props.bookId).then(() => this.loadChapters()).catch(() => window.alert('Retry failed. Your chapters are retained.')).finally(() => {this.retrying = false;});
+            },
             chapterStatusUpdate(chapters) {
                 this.chapters.forEach((currentChapter) => {
                     if (!chapters[currentChapter.id]) {
@@ -303,13 +309,12 @@
             },
             loadChapters() {
                 this.chaptersLoading = true;
-                this.chapters = [];
 
                 axios.post('/chapters', {
                     'bookId': this.$props.bookId,
                 }).then((response) => {
                     for (let chapterIndex = 0; chapterIndex < response.data.chapters.length; chapterIndex++) {
-                        response.data.chapters[chapterIndex].wordCountsLoaded = false;
+                        response.data.chapters[chapterIndex].wordCountsLoaded = response.data.chapters[chapterIndex].processing_status === 'processed' && !!response.data.chapters[chapterIndex].wordCount;
                     }
                     
                     this.book = response.data.book;
@@ -322,10 +327,7 @@
                     }
 
                     this.chaptersLoading = false;
-                    this.$nextTick(() => {
-                        axios.get('/chapters/word-counts/' + this.$props.bookId);
-                    }) 
-                });
+                }).catch(() => { this.errorDialog.active = true; }).finally(() => { this.chaptersLoading = false; });
             },
             showStartReviewDialog(bookId, bookName, chapterId, chapterName) {
                 this.startReviewDialog.bookName = bookName;

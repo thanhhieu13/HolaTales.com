@@ -28,7 +28,7 @@ class CreateUserRequest extends FormRequest
             'email' => 'required|email',
             'isAdmin' => 'required|boolean',
             'password' => 'required|string|confirmed|min:8|max:32',
-            'password_confirmation' => 'required|string'
+            'password_confirmation' => 'required|string',
         ];
     }
 }

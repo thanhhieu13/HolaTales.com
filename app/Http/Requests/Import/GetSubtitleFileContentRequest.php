@@ -24,7 +24,7 @@ class GetSubtitleFileContentRequest extends FormRequest
     public function rules()
     {
         return [
-            'subtitleFile' => 'required|file'
+            'subtitleFile' => 'required|file|extensions:srt,vtt,ass,ssa,sub|max:10240',
         ];
     }
 }

@@ -10,7 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Setting::whereIn("name", ["vuetifyThemes", "textStyling"])->delete();
+        Setting::whereIn('name', ['vuetifyThemes', 'textStyling'])->delete();
     }
 
     /**

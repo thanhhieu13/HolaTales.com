@@ -8,6 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class ChapterProcessingQueueStat extends Model
 {
     use HasFactory;
-    
+
     protected $table = 'queue_stats_chapter_processing';
 }

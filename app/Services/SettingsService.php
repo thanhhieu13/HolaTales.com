@@ -4,28 +4,27 @@ namespace App\Services;
 
 use App\Models\Setting;
 
-class SettingsService {
-    
-    public function __construct() {
-    }
+class SettingsService
+{
+    public function __construct() {}
 
-    public function isJellyfinEnabled() {
-        $isJellyfinEnabled = Setting
-            ::select('value', 'name')
+    public function isJellyfinEnabled()
+    {
+        $isJellyfinEnabled = Setting::select('value', 'name')
             ->where('user_id', -1)
             ->where('name', 'jellyfinEnabled')
             ->first();
 
-        if (!$isJellyfinEnabled) {
+        if (! $isJellyfinEnabled) {
             throw new \Exception('Missing jellyfinEnabled setting. This should never occur.');
         }
 
         return json_decode($isJellyfinEnabled->value);
     }
 
-    public function getAnkiSettings() {
-        $ankiSettings = Setting
-            ::select('value', 'name')
+    public function getAnkiSettings()
+    {
+        $ankiSettings = Setting::select('value', 'name')
             ->where('user_id', -1)
             ->whereIn('name', ['ankiAutoAddCards', 'ankiShowNotifications'])
             ->get()
@@ -41,9 +40,9 @@ class SettingsService {
         return $ankiSettings;
     }
 
-    public function getGlobalSettingsByName($settingNames) {
-        $settings = Setting
-            ::select('value', 'name')
+    public function getGlobalSettingsByName($settingNames)
+    {
+        $settings = Setting::select('value', 'name')
             ->where('user_id', -1)
             ->whereIn('name', $settingNames)
             ->get()
@@ -59,10 +58,10 @@ class SettingsService {
         return $settings;
     }
 
-    public function updateGlobalSettings($settings) {
+    public function updateGlobalSettings($settings)
+    {
         foreach ($settings as $settingName => $settingValue) {
-            $setting = Setting
-                ::where('name', $settingName)
+            $setting = Setting::where('name', $settingName)
                 ->where('user_id', -1)
                 ->first();
 
@@ -75,9 +74,9 @@ class SettingsService {
         return true;
     }
 
-    public function getUserSettingsByName($userId, $settingNames) {
-        $settings = Setting
-            ::select('value', 'name')
+    public function getUserSettingsByName($userId, $settingNames)
+    {
+        $settings = Setting::select('value', 'name')
             ->where('user_id', $userId)
             ->whereIn('name', $settingNames)
             ->get()
@@ -93,21 +92,21 @@ class SettingsService {
         return $settings;
     }
 
-    public function updateUserSettings($userId, $settings) {
+    public function updateUserSettings($userId, $settings)
+    {
         foreach ($settings as $settingName => $settingValue) {
-            $setting = Setting
-                ::where('name', $settingName)
+            $setting = Setting::where('name', $settingName)
                 ->where('user_id', $userId)
                 ->first();
 
-            if (!$setting) {
-                $setting = new Setting();
+            if (! $setting) {
+                $setting = new Setting;
                 $setting->user_id = $userId;
                 $setting->name = $settingName;
             }
 
             $setting->value = json_encode($settingValue);
-            $setting->save();                
+            $setting->save();
         }
 
         return true;

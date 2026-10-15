@@ -19,13 +19,13 @@ class CreateGoalsTable extends Migration
             $table->integer('user_id');
             $table->string('language');
             $table->string('type');
-            
+
             // goal types
-            // review - review all srs due today. daily mode only. 
+            // review - review all srs due today. daily mode only.
             // read_words - read x words. daily mode only.
             // learn_words - add x new words or phrases to srs. daily mode only.
             // read_book_chapter - read x chapter/day from a book. daily mode only.
-            
+
             $table->string('target_id')->nullable();
             $table->integer('current_chapter')->nullable();
 

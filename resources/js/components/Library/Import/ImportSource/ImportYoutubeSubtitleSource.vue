@@ -93,7 +93,7 @@
             v-if="selectedSubtitle !== -1"
             id="selected-youtube-subtitle"
             class="rounded-xl pa-6 mt-2"
-            v-html="subtitles[selectedSubtitle].displayText"
+            v-text="subtitles[selectedSubtitle].displayText"
         ></div>
         <v-btn
             v-if="selectedSubtitle !== -1 && $vuetify.breakpoint.xsOnly"

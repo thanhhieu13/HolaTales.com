@@ -7,6 +7,7 @@
             'spaceless-language': ['chinese', 'japanese', 'thai'].includes($props.language)
         }"
     >
+        <v-alert v-if="translationNotice" dense type="info" role="status" style="position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:8;max-width:90vw">{{ translationNotice }}</v-alert>
         <!-- Delete phrase dialog -->
         <delete-phrase-dialog
             v-model="deletePhraseDialog"
@@ -184,6 +185,7 @@
     export default {
         data: function() {
             return {
+                translationNotice: '', wordTranslationTimer: null, wordTranslationGeneration: 0,
                 // dialogs
                 deletePhraseDialog: false,
 
@@ -339,12 +341,33 @@
             this.updateTextToSpeechState();
         },
         beforeDestroy() {
+            this.wordTranslationGeneration++;
+            clearTimeout(this.wordTranslationTimer);
             window.removeEventListener('resize', this.resizeHandle);
             window.removeEventListener('mouseup', this.unselectAllWordsOnEmptyClick);
             window.removeEventListener('keydown', this.hotkeyHandle);
             window.removeEventListener('mousemove', this.closeHoverBox);
         },
         methods: {
+            pollWordMeaning(wordId, generation, attempt = 0) {
+                const current = () => generation === this.wordTranslationGeneration && this.selection.length === 1 && this.uniqueWords[this.selection[0].uniqueWordIndex].id === wordId;
+                if (!current() || this.$store.state.vocabularyBox.translationText) return;
+                axios.post('/learning/translate-word', {wordId}).then(r => {
+                    if (!current() || this.$store.state.vocabularyBox.translationText) return;
+                    if (['queued', 'processing'].includes(r.data.status)) {
+                        if (attempt >= 30) { this.translationNotice = 'Dịch đang xử lý lâu. Bạn có thể nhập nghĩa thủ công.'; return; }
+                        this.translationNotice = 'Đang xử lý nghĩa từ…';
+                        this.wordTranslationTimer = setTimeout(() => this.pollWordMeaning(wordId, generation, attempt + 1), Math.min(15000, 2000 + attempt * 1000));
+                        return;
+                    }
+                    this.translationNotice = r.data.translation ? (['saved','glossary'].includes(r.data.source) ? '' : 'Nghĩa dịch máy · cần đối chiếu với ngữ cảnh.') : (r.data.message || 'Chưa có bản dịch. Bạn có thể nhập nghĩa thủ công.');
+                    if (r.data.translation) {
+                        this.$store.commit('vocabularyBox/setTranslationText', r.data.translation);
+                        this.$store.commit('vocabularyBox/update');
+                    }
+                }).catch(e => { if (current()) this.translationNotice = e.response?.data?.message || 'Tự dịch chưa khả dụng. Bạn có thể nhập nghĩa thủ công.'; });
+            },
+
             textToSpeech() {
                 if (!this.selection.length) {
                     return;
@@ -1213,6 +1236,10 @@
                 document.getElementsByClassName('vocab-box-area')[0].scrollBy(0, scrollChange);
             },
             updateVocabBoxDataAfterSelection() {
+                this.$root.$emit('reader-overlay-open');
+                this.wordTranslationGeneration++;
+                clearTimeout(this.wordTranslationTimer);
+                this.translationNotice = '';
                 this.$store.commit('vocabularyBox/reset');
                 this.$store.commit('vocabularyBox/setActive', true);
 
@@ -1272,6 +1299,13 @@
                 }
 
                 this.$store.commit('vocabularyBox/update');
+                if (this.selection.length === 1) {
+                    const selected = this.uniqueWords[this.selection[0].uniqueWordIndex];
+                    if (!selected.translation && ['english', 'spanish'].includes(this.$props.language)) {
+                        this.translationNotice = 'Đang tự dịch từ…';
+                        this.pollWordMeaning(selected.id, this.wordTranslationGeneration);
+                    }
+                }
                 this.resizeHandle();
                 this.$store.commit('hoverVocabularyBox/setValue', { propertyName: 'disabledWhileSelecting', value: false });
             },
@@ -1726,6 +1760,7 @@
                 }
 
                 axios.post('/vocabulary/word/update', saveData).catch(function (error) {
+                    window.alert('Không lưu được từ vựng. Vui lòng kiểm tra kết nối và thử lại trước khi rời trang.');
                 });
 
                 if (exampleSentenceChanged) {

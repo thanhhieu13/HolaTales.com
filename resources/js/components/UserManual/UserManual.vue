@@ -25,22 +25,18 @@
 
         <!-- Pages -->
         <div id="user-manual-content">
-            <VueShowdown
-                v-if="userManualFile"
-                :markdown="userManualFile"
-                :options="{ 
-                    emoji: true,
-                    tables: true
-                }"
-            />
+            <div v-if="userManualFile" v-html="safeManualHtml"></div>
         </div>
     </div>
 </template>
 
 <script>
 import axios from 'axios';
+import {marked} from 'marked';
+import DOMPurify from 'dompurify';
 
     export default {
+        computed: { safeManualHtml() { return DOMPurify.sanitize(marked.parse(this.userManualFile || '')); } },
         data: function() {
             return {
                 userManualFile: null,

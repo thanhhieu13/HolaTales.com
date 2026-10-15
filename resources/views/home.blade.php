@@ -1,10 +1,4 @@
 @extends('layouts.user')
-@section('content')<layout 
-    _user-name="{{ $userName }}" 
-    _user-email="{{ $userEmail }}" 
-    _user-uuid="{{ $userUuid }}" 
-    :_user-count="{{ $userCount }}" 
-    :_is-admin="{{ json_encode($isAdmin) }}" 
-    :theme-settings="{{ json_encode($themeSettings) }}"
-    _selected-language="{{ $language }}"
-></layout>@endsection
+@section('content')
+<script id="app-bootstrap" type="application/json">{!! json_encode(['_userName'=>$userName, '_userEmail'=>$userEmail, '_userUuid'=>$userUuid, '_userCount'=>$userCount, '_isAdmin'=>$isAdmin, 'themeSettings'=>$themeSettings, '_selectedLanguage'=>$language], JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) !!}</script>
+@endsection

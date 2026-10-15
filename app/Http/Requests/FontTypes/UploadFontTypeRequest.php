@@ -26,7 +26,7 @@ class UploadFontTypeRequest extends FormRequest
         return [
             'name' => 'required|string|min:2|max:128',
             'languages' => 'required|string',
-            'fontFile' => 'required|file'
+            'fontFile' => 'required|file',
         ];
     }
 }

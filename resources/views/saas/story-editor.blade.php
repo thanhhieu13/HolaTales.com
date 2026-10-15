@@ -1,0 +1,27 @@
+@extends('saas.layout')
+@section('content')
+<a href="/editor/stories">← Phòng biên tập</a><h1>{{ $story->title }}</h1>
+<p>{{ config('learning.sources.'.$story->language.'.label') }} · {{ $story->published_at?'Published':'Draft' }}. Sửa bản gốc không ghi đè sách và tiến độ người học đã bắt đầu.</p>
+<details class="card" open><summary>Xem trước bản gốc</summary><article style="white-space:pre-wrap">{{ $story->body }}</article></details>
+<h2>Chỉnh sửa bản gốc</h2><form method="post" class="form card">@csrf<input type="hidden" name="expected_hash" value="{{ hash('sha256',$story->body) }}"><label>Tên truyện<input name="title" value="{{ $story->title }}" maxlength="128" required></label><label>Tóm tắt<textarea name="summary" maxlength="500" required>{{ $story->summary }}</textarea></label><label>Nội dung<textarea name="body" maxlength="15000" required>{{ $story->body }}</textarea></label><button>Lưu nội dung</button></form>
+<h2>Bản dịch của phiên bản hiện tại</h2>
+<div class="grid">@forelse($translations as $translation)<article class="card"><h3>{{ config('learning.targets.'.$translation->target,$translation->target) }}</h3><span class="tag">{{ $translation->status }} · {{ $translation->review_status }}</span><p style="white-space:pre-wrap">{{ $translation->body }}</p>@if($translation->review_status==='approved')<form method="post" action="/editor/stories/{{ $story->id }}/translations/revoke" onsubmit="return confirm('Thu hồi duyệt bản dịch này?')">@csrf<input type="hidden" name="target" value="{{ $translation->target }}"><input type="hidden" name="expected_hash" value="{{ hash('sha256',$story->body) }}"><button>Thu hồi duyệt</button></form>@endif</article>@empty<p>Chưa có bản dịch cho phiên bản này.</p>@endforelse</div>
+<h2>Lưu bản dịch đã duyệt</h2><p>Chỉ lưu khi đã đối chiếu với bản gốc. Bản dịch này được ưu tiên hơn dịch máy.</p>
+<form method="post" action="/editor/stories/{{ $story->id }}/translations" class="form card">@csrf<input type="hidden" name="expected_hash" value="{{ hash('sha256',$story->body) }}"><label>Ngôn ngữ dịch<select name="target">@foreach(config('learning.targets') as $code=>$label)<option value="{{ $code }}">{{ $label }}</option>@endforeach</select></label><label>Nội dung bản dịch<textarea name="body" maxlength="30000" required></textarea></label><button>Lưu và duyệt bản dịch</button></form>
+
+<h2>Chương gốc theo thứ tự</h2><p>Sửa chương và thứ tự chỉ tác động bản nháp. Người đang học giữ snapshot đã bắt đầu.</p>
+@foreach($originalChapters as $original)
+<details class="card"><summary>{{ $original->position }}. {{ $original->title }} · revision {{ $original->revision }}</summary>
+<form method="post" action="/editor/stories/{{ $story->id }}/chapters/{{ $original->id }}/edit" class="form">@csrf<input type="hidden" name="expected_revision" value="{{ $original->revision }}"><label>Tên chương<input name="title" value="{{ $original->title }}" maxlength="128" required></label><label>Bản gốc<textarea name="body" maxlength="5000" required>{{ $original->body }}</textarea></label><button>Lưu chương</button></form>
+<form method="post" action="/editor/stories/{{ $story->id }}/chapters/{{ $original->id }}/move">@csrf<button name="direction" value="up">↑ Lên</button> <button name="direction" value="down">↓ Xuống</button></form>
+@foreach(($originalTranslations[$original->id] ?? collect()) as $translation)
+<p>{{ config('learning.targets.'.$translation->target) }} · {{ $translation->review_status }} · {{ $translation->source_hash===hash('sha256',$original->body)?'Current original':'Historical original' }}</p><p style="white-space:pre-wrap">{{ $translation->body }}</p>
+@if($translation->review_status==='approved')<form method="post" action="/editor/stories/{{ $story->id }}/chapters/{{ $original->id }}/translations/revoke" onsubmit="return confirm('Thu hồi duyệt bản dịch chương này?')">@csrf<input type="hidden" name="target" value="{{ $translation->target }}"><input type="hidden" name="expected_hash" value="{{ $translation->source_hash }}"><button>Thu hồi duyệt bản dịch chương</button></form>@endif
+@endforeach
+<form method="post" action="/editor/stories/{{ $story->id }}/chapters/{{ $original->id }}/translations" class="form">@csrf<input type="hidden" name="expected_hash" value="{{ hash('sha256',$original->body) }}"><label>Dịch sang<select name="target">@foreach(config('learning.targets') as $code=>$label)<option value="{{ $code }}">{{ $label }}</option>@endforeach</select></label><label>Bản dịch đã đối chiếu<textarea name="body" required maxlength="30000"></textarea></label><button>Duyệt bản dịch chương</button></form>
+</details>
+@endforeach
+<form class="form card" method="post" action="/editor/stories/{{ $story->id }}/chapters">@csrf<h3>Thêm chương</h3><label>Tên chương<input name="title" maxlength="128" required></label><label>Bản gốc<textarea name="body" maxlength="5000" required></textarea></label><button>Thêm vào bản nháp</button></form>
+<h2>Phiên bản xuất bản</h2><form method="post" action="/editor/stories/{{ $story->id }}/publish">@csrf<button name="action" value="publish">Xuất bản snapshot mới</button>@if($story->published_at)<button name="action" value="unpublish">Gỡ xuất bản</button>@endif</form>
+<ul>@foreach($publications as $publication)<li>Version {{ $publication->version }} · {{ $publication->created_at }} {{ $publication->id===$story->current_publication_id?'· Đang phục vụ':'' }}</li>@endforeach</ul>
+@endsection

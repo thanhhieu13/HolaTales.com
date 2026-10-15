@@ -39,3 +39,24 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 //     cluster: process.env.MIX_PUSHER_APP_CLUSTER,
 //     forceTLS: true
 // });
+
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+if (csrfToken) window.axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken;
+const {safeUiObject} = require('./security/safeUiObject.cjs');
+window.axios.interceptors.response.use(response => {
+    if (response.data && typeof response.data === 'object') response.data = safeUiObject(response.data);
+    window.dispatchEvent(new CustomEvent('holatales-network-restored'));
+    return response;
+}, error => {
+    if (!error.response) window.dispatchEvent(new CustomEvent('holatales-network-unavailable'));
+    if ([401,419].includes(error.response?.status)) {
+        window.dispatchEvent(new CustomEvent('holatales-session-expired'));
+    }
+    return Promise.reject(error);
+});
+
+// Snapshot the pair of the loaded page; another tab must not silently change saves.
+const learningSource = document.querySelector('meta[name="learning-source"]')?.content;
+const learningTarget = document.querySelector('meta[name="translation-target"]')?.content;
+if (learningSource) window.axios.defaults.headers.common['X-Learning-Source'] = learningSource;
+if (learningTarget) window.axios.defaults.headers.common['X-Learning-Target'] = learningTarget;

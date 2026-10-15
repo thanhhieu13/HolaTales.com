@@ -21,6 +21,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE dictionaries DROP COLUMN api_host");
+        DB::statement('ALTER TABLE dictionaries DROP COLUMN api_host');
     }
 };

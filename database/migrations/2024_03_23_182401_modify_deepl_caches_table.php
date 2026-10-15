@@ -13,7 +13,7 @@ class ModifyDeeplCachesTable extends Migration
      */
     public function up()
     {
-        DB::statement("ALTER TABLE deepl_caches RENAME COLUMN language TO source_language");
+        DB::statement('ALTER TABLE deepl_caches RENAME COLUMN language TO source_language');
         Schema::table('deepl_caches', function (Blueprint $table) {
             $table->string('target_language', 256)->default('english');
         });

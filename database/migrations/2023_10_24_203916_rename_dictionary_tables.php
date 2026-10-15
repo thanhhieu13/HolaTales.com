@@ -19,11 +19,11 @@ class RenameDictionaryTables extends Migration
         Schema::rename('dictionary_ja_kanji', 'dict_jp_kanji');
         Schema::rename('dictionary_ja_kanji_radicals', 'dict_jp_kanji_radicals');
 
-        Schema::table('dict_jp_jmdict_readings', function(Blueprint $table) {
+        Schema::table('dict_jp_jmdict_readings', function (Blueprint $table) {
             $table->renameColumn('dictionary_ja_jmdict_id', 'dict_jp_jmdict_id');
         });
 
-        Schema::table('dict_jp_jmdict_words', function(Blueprint $table) {
+        Schema::table('dict_jp_jmdict_words', function (Blueprint $table) {
             $table->renameColumn('dictionary_ja_jmdict_id', 'dict_jp_jmdict_id');
         });
     }
@@ -41,11 +41,11 @@ class RenameDictionaryTables extends Migration
         Schema::rename('dict_jp_kanji', 'dictionary_ja_kanji');
         Schema::rename('dict_jp_kanji_radicals', 'dictionary_ja_kanji_radicals');
 
-        Schema::table('dictionary_ja_jmdict_readings', function(Blueprint $table) {
+        Schema::table('dictionary_ja_jmdict_readings', function (Blueprint $table) {
             $table->renameColumn('dict_jp_jmdict_id', 'dictionary_ja_jmdict_id');
         });
 
-        Schema::table('dictionary_ja_jmdict_words', function(Blueprint $table) {
+        Schema::table('dictionary_ja_jmdict_words', function (Blueprint $table) {
             $table->renameColumn('dict_jp_jmdict_id', 'dictionary_ja_jmdict_id');
         });
     }

@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Seeder;
 use App\Models\FontType;
+use Illuminate\Database\Seeder;
 
 class FontTypeSeeder extends Seeder
 {
@@ -34,15 +33,14 @@ class FontTypeSeeder extends Seeder
             'Welsh',
         ];
 
-        $fontType = FontType
-            ::where('filename', 'DefaultNotoSansJP.otf')
+        $fontType = FontType::where('filename', 'DefaultNotoSansJP.otf')
             ->first();
 
         if ($fontType) {
             $fontType->languages = json_encode($notoSansJpLanguages);
             $fontType->save();
         } else {
-            $fontType = new FontType();
+            $fontType = new FontType;
             $fontType->name = 'NotoSans JP';
             $fontType->filename = 'DefaultNotoSansJP.otf';
             $fontType->languages = json_encode($notoSansJpLanguages);
@@ -52,18 +50,17 @@ class FontTypeSeeder extends Seeder
 
         // Noto sans ZH
         $notoSansZhLanguages = [
-            'Chinese'
+            'Chinese',
         ];
 
-        $fontType = FontType
-            ::where('filename', 'DefaultNotoSansSC.ttf')
+        $fontType = FontType::where('filename', 'DefaultNotoSansSC.ttf')
             ->first();
 
         if ($fontType) {
             $fontType->languages = json_encode($notoSansZhLanguages);
             $fontType->save();
         } else {
-            $fontType = new FontType();
+            $fontType = new FontType;
             $fontType->name = 'NotoSans ZH';
             $fontType->filename = 'DefaultNotoSansSC.ttf';
             $fontType->languages = json_encode($notoSansZhLanguages);
@@ -81,15 +78,14 @@ class FontTypeSeeder extends Seeder
             'Slovenian',
         ];
 
-        $fontType = FontType
-            ::where('filename', 'DefaultOpenSans.ttf')
+        $fontType = FontType::where('filename', 'DefaultOpenSans.ttf')
             ->first();
 
         if ($fontType) {
             $fontType->languages = json_encode($openSansLanguages);
             $fontType->save();
         } else {
-            $fontType = new FontType();
+            $fontType = new FontType;
             $fontType->name = 'OpenSans';
             $fontType->filename = 'DefaultOpenSans.ttf';
             $fontType->languages = json_encode($openSansLanguages);

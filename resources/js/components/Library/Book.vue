@@ -187,7 +187,7 @@
                 });
 
                 if (isAnyChapterFailed) {
-                    axios.get(`/chapters/retry-failed-chapters/${this.$props.book.id}`);
+                    axios.post(`/chapters/retry-failed-chapters/${this.$props.book.id}`);
                 }
             },
             saveWordCountDisplayType() {

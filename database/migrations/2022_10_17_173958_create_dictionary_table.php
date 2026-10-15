@@ -19,9 +19,9 @@ class CreateDictionaryTable extends Migration
             $table->text('conjugations');
             $table->timestamps();
         });
-        
+
         Schema::create('dictionary_ja_jmdict_words', function (Blueprint $table) {
-            $table->id();    
+            $table->id();
             $table->integer('dictionary_ja_jmdict_id')->index();
             $table->string('word')->index();
             $table->timestamps();

@@ -90,7 +90,7 @@
                     placeholder="Book name"
                     maxlength="128"
                     :rules="[rules.bookName]"
-                    @keyup="formChanged"
+                    @input="formChanged"
                 ></v-text-field>
             </template>
             
@@ -105,7 +105,7 @@
                     placeholder="Chapter name"
                     maxlength="120"
                     :rules="[rules.chapterName]"
-                    @keyup="formChanged"
+                    @input="formChanged"
                 ></v-text-field>
             </template>
         </v-form>

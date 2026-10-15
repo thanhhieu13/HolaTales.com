@@ -15,7 +15,7 @@
                             dense
                             rounded
                             v-model="baseWord"
-                            @keyup="inputChanged"
+                            @input="inputChanged"
                             @keydown.stop=";"
                         ></v-text-field>
                         <v-icon class="mt-1 mx-1">mdi-arrow-right</v-icon>
@@ -28,7 +28,7 @@
                             dense
                             rounded
                             :value="word"
-                            @keyup="inputChanged"
+                            @input="inputChanged"
                             @keydown.stop=";"
                         ></v-text-field>
                     </div>
@@ -43,7 +43,7 @@
                             dense
                             rounded
                             v-model="baseWordReading"
-                            @keyup="inputChanged"
+                            @input="inputChanged"
                             @keydown.stop=";"
                         ></v-text-field>
                         <v-icon class="mt-1 mx-1">mdi-arrow-right</v-icon>
@@ -55,7 +55,7 @@
                             dense
                             rounded
                             v-model="reading"
-                            @keyup="inputChanged"
+                            @input="inputChanged"
                             @keydown.stop=";"
                         ></v-text-field>
                     </div>
@@ -88,7 +88,7 @@
                         hide-details
                         height="100"
                         v-model="reading"
-                        @keyup="inputChanged"
+                        @input="inputChanged"
                         @keydown.stop=";"
                     ></v-textarea>
 
@@ -103,7 +103,7 @@
                         hide-details
                         height="100"
                         v-model="translationText"
-                        @keyup="inputChanged('translation')"
+                        @input="inputChanged('translation')"
                         @keydown.stop=";"
                     ></v-textarea>
 

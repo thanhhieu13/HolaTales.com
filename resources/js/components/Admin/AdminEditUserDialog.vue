@@ -115,7 +115,7 @@
                         border="left"
                         dark
                     >
-                        <div v-html="errorMessage"></div>
+                        <div v-text="errorMessage"></div>
                     </v-alert>
                 </v-form>
             </v-card-text>

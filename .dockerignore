@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+vendor
+.qa-venv
+qa-results
+storage/logs/*
+storage/framework/*
+storage/app/*
+docker/mysql
+database/*.sqlite

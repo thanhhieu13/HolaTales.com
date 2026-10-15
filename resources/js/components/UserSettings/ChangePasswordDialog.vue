@@ -12,6 +12,7 @@
             <!-- Change password form -->
             <v-card-text class="pt-4 pb-6">
                 <v-form v-model="isFormValid" ref="userForm">
+<v-text-field v-model="currentPassword" label="Current password" type="password" autocomplete="current-password" filled rounded></v-text-field>
                     <template>
                         <!-- Password -->
                         <label class="font-weight-bold">New password</label>
@@ -54,7 +55,7 @@
                     border="left"
                     dark
                 >
-                    <div v-html="saveResult"></div>
+                    <div v-text="saveResult"></div>
                 </v-alert>
 
                 <v-alert
@@ -100,7 +101,7 @@
             return {
                 isFormValid: false,
                 saving: false,
-                password: '',
+                currentPassword: '', password: '',
                 passwordConfirmation: '',
                 saveResult: '',
 
@@ -128,7 +129,7 @@
 
                 this.saving = true;
                 axios.post('/users/update-password', {
-                    password: this.password,
+                    current_password: this.currentPassword, password: this.password,
                     password_confirmation: this.passwordConfirmation
                 }).then((response) => {
                     if (response.status !== 200) {

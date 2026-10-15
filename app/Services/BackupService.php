@@ -2,53 +2,55 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Arr;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Process;
 
-class BackupService {
+class BackupService
+{
     public function createBackup(): int
     {
-        $host = ' -h ' . env('DB_HOST');
-        $port = ' -P ' . env('DB_PORT');
-        $username = ' -u ' . env('DB_USERNAME');
-        $password = ' -p' . env('DB_PASSWORD');
-        $database = ' ' . env('DB_DATABASE');
-        $timestamp = Carbon::now()->format('Y_m_d_H_i_s');
-        
-        $path = '/var/www/html/storage/backup/';
-        $prefix = 'linguacafe_';
-        $fileName = $prefix . $timestamp . '.sql';
-        $fullFilePath = $path . $fileName;
-
-        $this->deleteOldBackups($prefix);
-
-        $exitCode = null;
-        exec(
-            command: 'mysqldump --no-tablespaces' . $host . $port . $username . $password . $database . ' > ' . $fullFilePath, 
-            result_code: $exitCode
-        );
-
-        return $exitCode;
-    }
-
-    private function deleteOldBackups($prefix): void
-    {
-        $maxBackups = env('MAX_SAVED_BACKUPS');
-        $files = $this->getBackupFiles($prefix);
-        while (count($files) >= $maxBackups) {
-            $fileToDelete = array_shift($files);
-            Storage::disk('backup')->delete($fileToDelete);
+        $disk = Storage::disk('backup');
+        $path = $disk->path('');
+        if (! is_dir($path)) {
+            mkdir($path, 0700, true);
         }
-    }
+        $filename = 'holatales_'.now()->format('Y_m_d_H_i_s').'_'.bin2hex(random_bytes(3)).'.sql';
+        $credentials = tempnam(sys_get_temp_dir(), 'ht-db-');
+        chmod($credentials, 0600);
+        $config = config('database.connections.mysql');
+        $quote = fn ($v) => '"'.str_replace(['\\', '"', "\n", "\r"], ['\\\\', '\\"', '\\n', '\\r'], (string) $v).'"';
+        file_put_contents($credentials, "[client]\nuser=".$quote($config['username'])."\npassword=".$quote($config['password'])."\nhost=".$quote($config['host'])."\nport=".(int) $config['port']."\n");
+        $tmp = $disk->path($filename.'.tmp');
+        $out = fopen($tmp, 'wb');
+        try {
+            $process = new Process(['mysqldump', '--defaults-extra-file='.$credentials, '--no-tablespaces', '--single-transaction', $config['database']]);
+            $process->setTimeout(120);
+            $process->run(function ($type, $buffer) use ($out) {
+                if ($type === Process::OUT) {
+                    fwrite($out, $buffer);
+                }
+            });
+            fclose($out);
+            $out = null;
+            if (! $process->isSuccessful() || ! filesize($tmp)) {
+                @unlink($tmp);
 
-    private function getBackupFiles($prefix): array 
-    {
-        $files = Storage::disk('backup')->files();
-        $files = Arr::where($files, function ($value) use($prefix) {
-            return strpos($value, $prefix) === 0 && str_contains($value, '.sql');
-        });
+                return 1;
+            }
+            rename($tmp, $disk->path($filename));
+            $files = array_values(array_filter($disk->files(), fn ($f) => preg_match('/^(holatales|linguacafe)_.*\.sql$/', $f)));
+            sort($files);
+            $retain = max(1, (int) env('MAX_SAVED_BACKUPS', 14));
+            while (count($files) > $retain) {
+                $disk->delete(array_shift($files));
+            }
 
-        return $files;
+            return 0;
+        } finally {
+            if (is_resource($out)) {
+                fclose($out);
+            }@unlink($credentials);
+            @unlink($tmp);
+        }
     }
 }

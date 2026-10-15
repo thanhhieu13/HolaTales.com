@@ -13,7 +13,7 @@ class ModifyEncounteredWordsTable6 extends Migration
      */
     public function up()
     {
-        DB::statement("ALTER TABLE encountered_words DROP COLUMN last_level_up");
+        DB::statement('ALTER TABLE encountered_words DROP COLUMN last_level_up');
         Schema::table('encountered_words', function (Blueprint $table) {
             // the date when the word was added to srs for the first time
             // it's null if it was not in the srs system yet

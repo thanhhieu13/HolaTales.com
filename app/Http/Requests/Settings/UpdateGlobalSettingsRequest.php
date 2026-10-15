@@ -24,7 +24,7 @@ class UpdateGlobalSettingsRequest extends FormRequest
     public function rules()
     {
         return [
-            'settings' => 'required|array'
+            'settings' => 'required|array',
         ];
     }
 }

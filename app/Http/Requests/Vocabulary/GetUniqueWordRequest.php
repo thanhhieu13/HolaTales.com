@@ -24,7 +24,7 @@ class GetUniqueWordRequest extends FormRequest
     public function rules()
     {
         return [
-            'wordId' => 'required|numeric|gte:0'
+            'wordId' => 'required|numeric|gte:0',
         ];
     }
 

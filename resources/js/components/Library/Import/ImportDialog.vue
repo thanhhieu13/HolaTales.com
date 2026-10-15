@@ -143,7 +143,7 @@
 
                             <!-- Error message -->
                             <v-alert dark border="left" type="error" color="error" v-if="importResult === 'error'">
-                                An error has occurred while importing your text.
+                                {{ importError }}
                             </v-alert>
 
                             <!-- Success message -->
@@ -227,6 +227,7 @@
             return {
                 importLoading: false,
                 importResult: '',
+                importError: '',
                 stepperPage: 1  ,
                 isImportSourceValid: false,
                 isImportOptionsValid: false,
@@ -295,7 +296,7 @@
                 
             },
             importOptionsChanged(newOptions) {
-                this.textProcessingMethod = newOptions.textProcessingMethod;
+                this.textProcessingMethod = 'detailed';
                 this.isImportOptionsValid = newOptions.isValid;
                 this.maximumCharactersPerChapter = newOptions.maximumCharactersPerChapter;
                 this.eBookChapterSortMethod = newOptions.eBookChapterSortMethod;
@@ -351,19 +352,15 @@
                 this.stepperPage = 5;
                 this.importResult = '';
 
-                axios.post('/import', data).catch(() => {
-                    this.importResult = 'error';
-                    this.importLoading = false;
-                }).then((response) => {
-                    if (response.status == 200) {
+                axios.post('/import', data).then((response) => {
+                    if (response.status === 200) {
                         this.importResult = 'success';
-                        this.importLoading = false;
                         this.$emit('import-finished', false);
                     }
                 }).catch((error) => {
                     this.importResult = 'error';
-                    this.importLoading = false;
-                });
+                    this.importError = Object.values(error.response?.data?.errors || {}).flat().join(' ') || error.response?.data?.message || 'Import unavailable. Your text is retained; go back and retry.';
+                }).finally(() => { this.importLoading = false; });
             },
             close() {
                 this.$emit('input', false);

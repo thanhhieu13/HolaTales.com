@@ -24,7 +24,7 @@ class GetBookWordCountsRequest extends FormRequest
     public function rules()
     {
         return [
-            'bookId' => 'required|numeric|gte:0'
+            'bookId' => 'required|numeric|gte:0',
         ];
     }
 

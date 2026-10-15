@@ -6,7 +6,11 @@ networks:
 
 services:
     webserver:
-        image: ghcr.io/simjanos-dev/linguacafe-webserver:${VERSION:-latest}
+        build:
+            context: .
+            dockerfile: docker/PhpDockerfile
+        image: holatales-webserver:${VERSION:-local}
+        env_file: .env
         container_name: linguacafe-webserver
         restart: unless-stopped
         depends_on:
@@ -19,14 +23,19 @@ services:
         environment:
             DB_DATABASE: ${DB_DATABASE:-linguacafe}
             DB_USERNAME: ${DB_USERNAME:-linguacafe}
-            DB_PASSWORD: ${DB_PASSWORD:-linguacafe}
+            DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
             DB_HOST: ${DB_HOST:-linguacafe-database}
             DB_PORT: ${DB_PORT:-3306}
+            APP_KEY: ${APP_KEY:?Set APP_KEY}
+            APP_ENV: production
+            APP_DEBUG: "false"
+            PYTHON_CONTAINER_NAME: http://linguacafe-python-service
+            REDIS_HOST: linguacafe-redis
             BACKUP_INTERVAL: "59 23 * * *"
             MAX_SAVED_BACKUPS: 14
         ports:
-            - "6001:6001"
-            - "${PORT:-9191}:80"
+            - "127.0.0.1:6001:6001"
+            - "127.0.0.1:${PORT:-9191}:80"
         networks:
             - linguacafe
         extra_hosts:
@@ -37,19 +46,19 @@ services:
         restart: unless-stopped
         tty: true
         healthcheck:
-            test: ["CMD", 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$MYSQL_ROOT_PASSWORD']
+            test: ["CMD-SHELL", 'mysqladmin ping -h localhost -u root -p"$$MYSQL_ROOT_PASSWORD"']
             interval: 10s
             timeout: 5s
             retries: 10
         volumes:
-            - ./database:/var/lib/mysql
+            - holatales-mysql:/var/lib/mysql
         environment:
             MYSQL_DATABASE: ${DB_DATABASE:-linguacafe}
             MYSQL_USER: ${DB_USERNAME:-linguacafe}
-            MYSQL_PASSWORD: ${DB_PASSWORD:-linguacafe}
-            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-linguacafe}
+            MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
             SERVICE_NAME: linguacafe
-        command: mysqld --general-log=1 --general-log-file=/var/lib/mysql/general-log.log
+
         networks:
             - linguacafe
     redis:
@@ -58,10 +67,7 @@ services:
         restart: unless-stopped
         volumes: 
             - ./cache:/data
-        ports:
-            - "6379:6379"
         environment:
-            REDIS_PASSWORD: linguacafe
             REDIS_PORT: 6379
             REDIS_DATABASES: 16
         networks:
@@ -71,11 +77,18 @@ services:
         command: "python3 /app/tokenizer.py"
         restart: unless-stopped
         tty: true
-        image: ghcr.io/simjanos-dev/linguacafe-python-service:${VERSION:-latest}
+        build:
+            context: .
+            dockerfile: docker/PythonDockerfile
+        image: holatales-python-service:${VERSION:-local}
         environment:
+            TOKENIZER_HOST: "0.0.0.0"
+            TOKENIZER_IMPORT_ROOT: "/var/www/html/storage/app/temp"
             PYTHONPATH: "/var/www/html/storage/app/model"
         volumes:
             - ./storage:/var/www/html/storage
         networks:
             - linguacafe
         platform: ${PLATFORM:-}
+volumes:
+    holatales-mysql:

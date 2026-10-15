@@ -32,4 +32,3 @@ class CreateSentenceCollectionsTable extends Migration
         Schema::dropIfExists('sentence_collections');
     }
 }
-

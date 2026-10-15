@@ -1,5 +1,11 @@
 <template>
     <div id="user-settings-account">
+        <nav aria-label="Personal learning tools" class="d-flex flex-wrap mb-4" style="gap:8px">
+            <v-btn href="/books" outlined>My Stories</v-btn>
+            <v-btn href="/books?import=1" outlined>Import Content</v-btn>
+            <v-btn href="/onboarding" outlined>Learning Settings</v-btn>
+            <v-btn href="/plans" outlined>Free / Pro</v-btn>
+        </nav>
         <!-- Password change dialog -->
         <change-password-dialog
             v-model="passwordChangeDialog"

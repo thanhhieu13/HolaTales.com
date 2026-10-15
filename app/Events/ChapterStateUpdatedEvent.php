@@ -2,9 +2,7 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -15,6 +13,7 @@ class ChapterStateUpdatedEvent implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     private $userUuid;
+
     public $chapters;
 
     public function __construct($userUuid, $chapters)
@@ -23,7 +22,8 @@ class ChapterStateUpdatedEvent implements ShouldBroadcastNow
         $this->userUuid = $userUuid;
     }
 
-    public function broadcastOn() {
-        return new PrivateChannel('chapter-status-update.' . $this->userUuid);
+    public function broadcastOn()
+    {
+        return new PrivateChannel('chapter-status-update.'.$this->userUuid);
     }
 }

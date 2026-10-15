@@ -2,29 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Goals\UpdateCalendarDataRequest;
+use App\Http\Requests\Goals\UpdateGoalRequest;
+use App\Models\GoalAchievement;
+use App\Services\GoalService;
+// request classes
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use App\Models\Goal;
-use App\Models\GoalAchievement;
-use App\Models\EncounteredWord;
-
-use App\Services\GoalService;
-
-// request classes
-use App\Http\Requests\Goals\UpdateGoalRequest;
-use App\Http\Requests\Goals\UpdateCalendarDataRequest;
 
 class GoalController extends Controller
 {
     private $goalService;
-    
-    public function __construct(GoalService $goalService) {
+
+    public function __construct(GoalService $goalService)
+    {
         $this->goalService = $goalService;
     }
 
-    public function getGoals() {
+    public function getGoals()
+    {
         $userId = Auth::user()->id;
         $language = Auth::user()->selected_language;
 
@@ -37,7 +33,8 @@ class GoalController extends Controller
         return response()->json($goals, 200);
     }
 
-    public function updateGoal(UpdateGoalRequest $request) {
+    public function updateGoal(UpdateGoalRequest $request)
+    {
         $userId = Auth::user()->id;
         $goalId = $request->post('goalId');
         $newGoalQuantity = $request->post('newGoalQuantity');
@@ -51,10 +48,11 @@ class GoalController extends Controller
         return response()->json('Goal has been updated successfully.', 200);
     }
 
-    public function getCalendarData() {
+    public function getCalendarData()
+    {
         $userId = Auth::user()->id;
         $language = Auth::user()->selected_language;
-        
+
         try {
             $calendarData = $this->goalService->getCalendarData($userId, $language);
         } catch (\Exception $e) {
@@ -64,18 +62,19 @@ class GoalController extends Controller
         return $calendarData;
     }
 
-    /* 
-        Updates a GoalAchievement, or creates one if it 
+    /*
+        Updates a GoalAchievement, or creates one if it
         doesn't exists yet for the given day and type.
     */
-    public function updateCalendarData(UpdateCalendarDataRequest $request) {
+    public function updateCalendarData(UpdateCalendarDataRequest $request)
+    {
         $userId = Auth::user()->id;
         $language = Auth::user()->selected_language;
         $achievementGoalId = $request->post('achievementGoalId');
         $achievementType = $request->post('achievementType');
         $day = $request->post('day');
         $newValue = $request->post('newValue');
-        
+
         try {
             $this->goalService->updateCalendarData($userId, $language, $achievementGoalId, $achievementType, $day, $newValue);
         } catch (\Exception $e) {
@@ -85,7 +84,8 @@ class GoalController extends Controller
         return response()->json('Calendar data has been updated successfully.', 200);
     }
 
-    public function updateReviewGoalAchievement() {
+    public function updateReviewGoalAchievement()
+    {
         $userId = Auth::user()->id;
         $language = Auth::user()->selected_language;
 
